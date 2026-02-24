@@ -36,8 +36,11 @@
     const status   = 'received'; // бек очікує, але користувачу не показуємо
     const supplier = params.get('supplier') || 'Невідомий постачальник';
     const orderDate = params.get('date') || params.get('orderDate') || '';
-    const ids = params.getAll('ids[]').length ? params.getAll('ids[]') :
+    const idsRaw = params.getAll('ids[]').length ? params.getAll('ids[]') :
                 (params.get('ids') ? params.get('ids').split(',') : []);
+    const ids = idsRaw
+      .map(x => Number(x))
+      .filter(n => !Number.isNaN(n));
 
     document.getElementById('title').textContent = supplier;
     document.getElementById('info').textContent  = `Позицій: ${ids.length}`;
