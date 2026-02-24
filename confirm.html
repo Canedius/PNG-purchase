@@ -49,10 +49,9 @@
     document.getElementById('confirm').onclick = async () => {
       const resBox = document.getElementById('res');
       resBox.textContent = 'Відправляю...';
-      const payload = { status, ids, supplier };
-      if (orderDate) payload.orderDate = orderDate;
+      const payload = ids.map(id => ({ id, procurement_status: status }));
       try {
-        const resp = await fetch('https://primary-production-eeb3.up.railway.app/webhook/aaf5a6e4-f47b-45ce-8f6b-e8e3600a2ab5', {
+        const resp = await fetch('https://primary-production-eeb3.up.railway.app/webhook/26cb3bb4-e19f-4037-8291-6525da83be45', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -66,4 +65,3 @@
   </script>
 </body>
 </html>
-
