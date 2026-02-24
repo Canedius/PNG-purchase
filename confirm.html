@@ -43,7 +43,8 @@
       .filter(n => !Number.isNaN(n));
 
     document.getElementById('title').textContent = supplier;
-    document.getElementById('info').textContent  = `Позицій: ${ids.length}`;
+    const dateLabel = orderDate ? ` · Дата замовлення: ${orderDate}` : '';
+    document.getElementById('info').textContent  = `Позицій: ${ids.length}${dateLabel}`;
 
     document.getElementById('confirm').onclick = async () => {
       const resBox = document.getElementById('res');
