@@ -452,11 +452,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const qrY = 32;
     let qrBottom = qrY;
     const idsForQr = selectedItems.map(i => i.id || i.orderNumber || i.sku).filter(Boolean);
+    const orderDateParam = selectedItems[0]?.dateOrder || "";
     if (idsForQr.length) {
-      const payload = { status: "received", ids: idsForQr, supplier: supplier.name };
       const confirmBase = "https://canedius.github.io/PNG-purchase/confirm.html";
       const query = `status=received&supplier=${encodeURIComponent(supplier.name)}&` +
-                    idsForQr.map(id => `ids[]=${encodeURIComponent(id)}`).join("&");
+                    idsForQr.map(id => `ids[]=${encodeURIComponent(id)}`).join("&") +
+                    (orderDateParam ? `&date=${encodeURIComponent(orderDateParam)}` : "");
       const targetUrl = `${confirmBase}?${query}`;
       const pageWidth = doc.internal.pageSize.getWidth();
       const placeQr = (dataUrl) => {
