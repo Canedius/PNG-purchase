@@ -131,7 +131,8 @@ document.addEventListener("DOMContentLoaded", () => {
     suppliers.forEach((supplier, idx) => {
       const visibleItems = supplier.items.filter(item => currentView === "ordered" ? item.status === "ordered" : item.status !== "ordered");
       if (currentView === "ordered") {
-        visibleItems.forEach(item => { item._selected = true; });
+        // За замовчуванням виділяємо лише якщо ще не визначено
+        visibleItems.forEach(item => { if (item._selected === undefined) item._selected = true; });
       } else {
         visibleItems.forEach(item => { if (item._selected === undefined) item._selected = false; });
       }
