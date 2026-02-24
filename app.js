@@ -454,23 +454,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const idsForQr = selectedItems.map(i => i.id || i.orderNumber || i.sku).filter(Boolean);
     if (idsForQr.length) {
       const payload = { status: "received", ids: idsForQr, supplier: supplier.name };
-      // компактна сторінка підтвердження у data:URL
-      const confirmHtml = `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;padding:16px">
-<h3>Підтвердити отримання</h3>
-<p>Постачальник: ${supplier.name}<br>Позицій: ${idsForQr.length}</p>
-<button id="ok">Підтвердити</button><div id="r" style="color:#666;font-size:12px"></div>
-<script>
-const p=${JSON.stringify(payload)};
-ok.onclick=async()=>{
-  r.textContent='Відправляю...';
-  try{
-    const resp=await fetch("${receiveWebhook}",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});
-    const t=await resp.text();
-    r.textContent=resp.ok?'Готово: '+t:'Помилка: '+resp.status+' '+t;
-  }catch(e){r.textContent='Помилка: '+e;}
-};
-</script>`;
-      const targetUrl = "data:text/html;base64," + btoa(unescape(encodeURIComponent(confirmHtml)));
+      const confirmBase = "https://canedius.github.io/PNG-purchase/confirm.html";
+      const query = `status=received&supplier=${encodeURIComponent(supplier.name)}&` +
+                    idsForQr.map(id => `ids[]=${encodeURIComponent(id)}`).join("&");
+      const targetUrl = `${confirmBase}?${query}`;
       const pageWidth = doc.internal.pageSize.getWidth();
       const placeQr = (dataUrl) => {
         const qrSize = 140;
@@ -846,5 +833,3 @@ ok.onclick=async()=>{
   } catch (e) {}
   setTabState(initialView);
 });
-
-
