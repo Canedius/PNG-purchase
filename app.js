@@ -452,7 +452,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const qrY = 32;
     let qrBottom = qrY;
     const idsForQr = selectedItems.map(i => i.id || i.orderNumber || i.sku).filter(Boolean);
-    const orderDateParam = selectedItems[0]?.dateOrder || "";
+    const orderDateParam =
+      (selectedItems[0]?.dateOrder && selectedItems[0].dateOrder !== "-")
+        ? selectedItems[0].dateOrder
+        : (selectedItems[0]?.raw?.OrderDate
+            ? new Date(selectedItems[0].raw.OrderDate).toISOString().slice(0,10)
+            : "");
     if (idsForQr.length) {
       const confirmBase = "https://canedius.github.io/PNG-purchase/confirm.html";
       const query = `status=received&supplier=${encodeURIComponent(supplier.name)}&` +
