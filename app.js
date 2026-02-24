@@ -424,7 +424,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (batchId) {
         // для batchId "unsorted" беремо ті, що без batchId
         const matchesUnsorted = batchId === "unsorted" && !i.batchId;
-        return i.status === "ordered" && (i.batchId === batchId || matchesUnsorted);
+        return i.status === "ordered" && (i.batchId === batchId || matchesUnsorted) && i._selected !== false;
       }
       return i._selected !== false;
     });
