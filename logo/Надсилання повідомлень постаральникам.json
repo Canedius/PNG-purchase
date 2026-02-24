@@ -1,0 +1,366 @@
+{
+  "name": "Надсилання повідомлень постаральникам",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "57f3c497-8c54-42fc-9f5d-243506225d3b",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        256
+      ],
+      "id": "72747916-a2b4-4a82-ba8e-c93e5bc611a3",
+      "name": "Webhook",
+      "webhookId": "57f3c497-8c54-42fc-9f5d-243506225d3b"
+    },
+    {
+      "parameters": {
+        "operation": "sendDocument",
+        "chatId": "={{ $json.chat_id }}",
+        "binaryData": true,
+        "binaryPropertyName": "={{ Object.keys($input.first().binary)[0] }}",
+        "additionalFields": {
+          "caption": "={{ $json.caption }}",
+          "disable_notification": false,
+          "message_thread_id": "={{ $json.message_thread_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1728,
+        256
+      ],
+      "id": "bf43a9c8-d73f-4245-a8e2-6370b33bb86c",
+      "name": "Send a document",
+      "webhookId": "b2cc3515-f1de-467b-b876-16141add160e",
+      "credentials": {
+        "telegramApi": {
+          "id": "mfFwsI0bN7Al8Y2A",
+          "name": "Бот відправки повідомлень постачальникам"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "15KqnE3EKTwCi60jmP2u740GjzjJTrF4KvnjAxTRxvcw",
+          "mode": "list",
+          "cachedResultName": "База постачальників для автоматизації",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/15KqnE3EKTwCi60jmP2u740GjzjJTrF4KvnjAxTRxvcw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Аркуш1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/15KqnE3EKTwCi60jmP2u740GjzjJTrF4KvnjAxTRxvcw/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "partnerName",
+              "lookupValue": "={{ $('Webhook').item.json.body.partnerName }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1280,
+        256
+      ],
+      "id": "a4f93779-a2db-4531-97b1-e42438e1b325",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CVyfCpz6ZkiVwjnh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        496
+      ],
+      "id": "2338e4f3-9743-4f2e-9754-16cd2f58491e",
+      "name": "Telegram Trigger",
+      "webhookId": "d5fdc6d1-4aa4-4a4b-8884-4ca697afb83c",
+      "credentials": {
+        "telegramApi": {
+          "id": "mfFwsI0bN7Al8Y2A",
+          "name": "Бот відправки повідомлень постачальникам"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "15KqnE3EKTwCi60jmP2u740GjzjJTrF4KvnjAxTRxvcw",
+          "mode": "list",
+          "cachedResultName": "База постачальників для автоматизації",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/15KqnE3EKTwCi60jmP2u740GjzjJTrF4KvnjAxTRxvcw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Аркуш1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/15KqnE3EKTwCi60jmP2u740GjzjJTrF4KvnjAxTRxvcw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "partnerName": "={{ $json.partnerName }}",
+            "chatId": "={{ $json.chatId }}",
+            "messageThreadId": "={{ $json.messageThreadId }}"
+          },
+          "matchingColumns": [
+            "partnerName"
+          ],
+          "schema": [
+            {
+              "id": "partnerName",
+              "displayName": "partnerName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "chatId",
+              "displayName": "chatId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "messageThreadId",
+              "displayName": "messageThreadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1728,
+        480
+      ],
+      "id": "decb27af-1de6-43d8-9d60-b182b80090c3",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CVyfCpz6ZkiVwjnh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Отримує всі binary дані з webhook (включно з файлом)\nconst binaryData = $('Webhook').item.binary || {};\n\n// Бере Chat ID та Message Thread ID з Google Sheets\nconst sheetsData = $('Get row(s) in sheet').first().json;\nconst chatId = sheetsData.chatId;\nconst messageThreadId = sheetsData.messageThreadId;\n\nreturn {\n  json: {\n    chat_id: chatId,\n    caption: \"Добрий день,прошу прийняти замовлення\",\n    message_thread_id: messageThreadId\n  },\n  binary: binaryData\n};"
+      },
+      "id": "c28c6e37-c59d-40d0-8a83-59a1db5960f8",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "17aa0b68-d336-4617-85a2-3c0e04c6808a",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "start+!",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        496
+      ],
+      "id": "08627990-fba1-48b3-9229-ed1b3756e004",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = items[0].json.message;\nconst chatTitle = message.chat.title || message.chat.first_name || 'Unknown';\nconst chatId = message.chat.id;\nconst messageThreadId = message.message_thread_id || null;\n\nreturn [{\n  json: {\n    partnerName: chatTitle,\n    chatId: chatId.toString(),\n    messageThreadId: messageThreadId ? messageThreadId.toString() : ''\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        480
+      ],
+      "id": "62936c5e-3706-4314-b7ff-b5f7f9b48421",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.eg-crm.cloud",
+            "user-agent": "1C+Enterprise/8.3",
+            "content-length": "14992",
+            "accept": "*/*",
+            "content-type": "application/json",
+            "x-forwarded-for": "192.168.2.1",
+            "x-forwarded-host": "n8n.eg-crm.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "aa286d5c4c22",
+            "x-real-ip": "192.168.2.1",
+            "accept-encoding": "gzip"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "partnerCode": "00-00031107",
+            "partnerName": "Галицька Їжа ТОВ",
+            "partnerPhone": "0679351234",
+            "dataXlsx": "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\r\nJfrByrQbLVein7BLu9E17aXS/pqOUqlVqEQvnE851Jpufswg7VhrvnmBedrBIt5L\r\n5/2Ij9K5ZVWiV4ylHc6qbF5fl3o4q7J5ZVXq4azK5mVOqYezKptXDaUdzq5ET5Wm\r\nHc6ubJ5YTj2cXdk8pZh6OLuyeX4v9XB2ZfN0WYr71trhKOaTbbU/Ot38/W38HHbG\r\ni+fJbJmbhk+r6Jf/OmXHLxT8kl8sWK5fLBUcq1j2Cp5djp6Mm7/99JrF9tv2T676\r\nY75af4//6WUv4fgxXH9FWo8PT/P5avvHk/3h++Hq21vuj+n44avMHocvk1V4ln8a\r\nT5fh+vrJajA3Q0Rh9/fh/ncLR8svF5vN53+Gi8FLOKvOv8/yufliEs5W49VkPjvL\r\nv80Xq8V4soqufwsX/cl/Nr8/cnuC7eHqm3PlxtPJ82w4Wb3s7tD9Y2EP42kYfbw6\r\nf4j9qsnHxfj7ZPacW1Qmj2f5RePRbDsNn8cPf1c/YvsQvqj/uGD7Ne705Pt88XXz\r\n5fn3/wdQSwMEFAAACAgALlFYXCvhIyTtAAAA7QIAACMAAAB4bC93b3Jrc2hlZXRz\r\nL19yZWxzL3NoZWV0MS54bWwucmVsc8WSy0oDMRSG1xZ8h3D2JjMVRWTSbkppt1If\r\n4JCcueDkQhLH9tm68JF8BeOi1gGtLgouc37y5Ts/edu/VvOt6dlAIXbOSih5AYys\r\ncrqzjYTHzfLqDlhMaDX2zpKEHUWYzy4n1QP1mPKl2HY+skyxUUKbkr8XIqqWDEbu\r\nPNmc1C4YTPkYGuFRPWFDYloUtyJ8ZUCmXoywbK0lhLUugW12nv6Cd3XdKVo49WzI\r\npm9eETrgS14uIzE0lCRwfph9hiXPWBA/Ck3PKTSYfnHK6ZiXfDipdX1OLeXMRxRH\r\nUofhbwXd/E9Bq+WxokqMfujsHVBLAwQUAAAICAAuUVhccjoQI+YAAABEAgAAGgAA\r\nAHhsL19yZWxzL3dvcmtib29rLnhtbC5yZWxzrZHBasMwDEDPG+wfjO6Lkw7GGHF7\r\nKYVeu+4DjK3EoYltLHVrvm2HfdJ+YWaDkMLGduhJSEJPD+nj7b1enYZevGCiLngF\r\nVVGCQG+C7Xyr4Hm/uX0AQay91X3wqGBEgtXy5rreYa85D5HrIolM8aTAMcdHKck4\r\nHDQVIaLPnSakQXNOUyujNgfdolyU5b1McwZk6tUZVmytgrS1FYj9GPE/+NA0ncF1\r\nMMcBPf+wRb6GdCCHyBmqU4usYCqR/ApVkakgf/VZXNKHeOzzTSeZ7/wPg7uLGjid\r\n0D5xyj+fi8zLk08tzx6//ARQSwMEFAAACAgALlFYXPLZn12+AAAAMQEAAAsAAABf\r\ncmVscy8ucmVsc43PPQ7CMAwF4Bkk7hB5p2kZEEIEFoTUFZUDhNT9Uds4SgK0Z2Pg\r\nSFyBsFHEwGjZ77Pe8/7Y7PquZVe0riYtIIliYKgV5bUuBZyyw3wFzHmpc9mSRgED\r\nOthtZ9PNEVvpQ8hVtXEsKNoJqLw3a86dqrCTLiKDOmwKsp30YbQlN1I1skS+iOMl\r\nt58GBHUyYlmaC7BpngDLBoP/8FQUtcI9qUuH2v/48nURZGlL9AL6lt/INmeiJgoo\r\n8HdJPmq5fQFQSwECLgMUAAAICAAuUVhc01GMnmYBAABbBQAAEwAkAAAAAAAAAAAA\r\ntIEAAAAAW0NvbnRlbnRfVHlwZXNdLnhtbAoAIAAAAAAAAQAYAACsgOVkpdwBAKyA\r\n5WSl3AEArIDlZKXcAVBLAQIuAxQAAAgIAC5RWFzJ6Iv3ngAAAMwAAAAQACQAAAAA\r\nAAAAAAC0gZcBAAB4bC9jb21tZW50czEueG1sCgAgAAAAAAABABgAAKyA5WSl3AEA\r\nrIDlZKXcAQCsgOVkpdwBUEsBAi4DFAAACAgALlFYXMa4pU23AgAA/QUAABQAJAAA\r\nAAAAAAAAALSBYwIAAHhsL3NoYXJlZFN0cmluZ3MueG1sCgAgAAAAAAABABgAAKyA\r\n5WSl3AEArIDlZKXcAQCsgOVkpdwBUEsBAi4DFAAACAgALlFYXEdDsnqoAwAA8iMA\r\nAA0AJAAAAAAAAAAAALSBTAUAAHhsL3N0eWxlcy54bWwKACAAAAAAAAEAGAAArIDl\r\nZKXcAQCsgOVkpdwBAKyA5WSl3AFQSwECLgMUAAAICAAuUVhc6+9WUVkBAABDAgAA\r\nDwAkAAAAAAAAAAAAtIEfCQAAeGwvd29ya2Jvb2sueG1sCgAgAAAAAAABABgAAKyA\r\n5WSl3AEArIDlZKXcAQCsgOVkpdwBUEsBAi4DFAAACAgALlFYXKXmWcuPAAAAzwAA\r\nABgAJAAAAAAAAAAAALSBpQoAAHhsL2RyYXdpbmdzL2RyYXdpbmcxLnhtbAoAIAAA\r\nAAAAAQAYAACsgOVkpdwBAKyA5WSl3AEArIDlZKXcAVBLAQIuAxQAAAgIAC5RWFx5\r\nwjAT+AAAAKsBAAAbACQAAAAAAAAAAAC0gWoLAAB4bC9kcmF3aW5ncy92bWxEcmF3\r\naW5nMS52bWwKACAAAAAAAAEAGAAArIDlZKXcAQCsgOVkpdwBAKyA5WSl3AFQSwEC\r\nLgMUAAAICAAuUVhc5EbKfcgBAAAtBAAAHQAkAAAAAAAAAAAAtIGbDAAAeGwvZHJh\r\nd2luZ3Mvdm1sRHJhd2luZ0hGMS52bWwKACAAAAAAAAEAGAAArIDlZKXcAQCsgOVk\r\npdwBAKyA5WSl3AFQSwECLgMUAAAICAAuUVhcHze3A4IAAACRAAAAIwAkAAAAAAAA\r\nAAAAtIGeDgAAeGwvZHJhd2luZ3MvX3JlbHMvZHJhd2luZzEueG1sLnJlbHMKACAA\r\nAAAAAAEAGAAArIDlZKXcAQCsgOVkpdwBAKyA5WSl3AFQSwECLgMUAAAICAAuUVhc\r\nHze3A4IAAACRAAAAKAAkAAAAAAAAAAAAtIFhDwAAeGwvZHJhd2luZ3MvX3JlbHMv\r\ndm1sRHJhd2luZ0hGMS52bWwucmVscwoAIAAAAAAAAQAYAACsgOVkpdwBAKyA5WSl\r\n3AEArIDlZKXcAVBLAQIuAxQAAAgIAC5RWFw60XG4hg8AAPuMAAAYACQAAAAAAAAA\r\nAAC0gSkQAAB4bC93b3Jrc2hlZXRzL3NoZWV0MS54bWwKACAAAAAAAAEAGAAArIDl\r\nZKXcAQCsgOVkpdwBAKyA5WSl3AFQSwECLgMUAAAICAAuUVhcK+EjJO0AAADtAgAA\r\nIwAkAAAAAAAAAAAAtIHlHwAAeGwvd29ya3NoZWV0cy9fcmVscy9zaGVldDEueG1s\r\nLnJlbHMKACAAAAAAAAEAGAAArIDlZKXcAQCsgOVkpdwBAKyA5WSl3AFQSwECLgMU\r\nAAAICAAuUVhccjoQI+YAAABEAgAAGgAkAAAAAAAAAAAAtIETIQAAeGwvX3JlbHMv\r\nd29ya2Jvb2sueG1sLnJlbHMKACAAAAAAAAEAGAAArIDlZKXcAQCsgOVkpdwBAKyA\r\n5WSl3AFQSwECLgMUAAAICAAuUVhc8tmfXb4AAAAxAQAACwAkAAAAAAAAAAAAtIEx\r\nIgAAX3JlbHMvLnJlbHMKACAAAAAAAAEAGAAArIDlZKXcAQCsgOVkpdwBAKyA5WSl\r\n3AFQSwUGAAAAAA4ADgDKBQAAGCMAAAAA"
+          },
+          "webhookUrl": "https://n8n.eg-crm.cloud/webhook/57f3c497-8c54-42fc-9f5d-243506225d3b",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Send a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a document": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f783ba24-4954-488f-bb2e-5b5ce2a2345b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d66eca0b8fe077cf284497f501d04ef2239ad9d3ecf956d4f11256c1ff0c896b"
+  },
+  "id": "mY1gzqLoK7521uNYw7tEi",
+  "tags": []
+}
