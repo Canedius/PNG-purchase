@@ -25,7 +25,6 @@
     <div class="badge">Підтвердження отримання</div>
     <div id="title" class="title"></div>
     <div id="info" class="row"></div>
-    <div id="dateRow" class="row"></div>
     <div id="res" class="muted"></div>
     <div class="btn-wrap">
       <button class="btn" id="confirm">Підтвердити</button>
@@ -36,27 +35,28 @@
     const params = new URLSearchParams(location.search);
     const status   = 'received'; // бек очікує, але користувачу не показуємо
     const supplier = params.get('supplier') || 'Невідомий постачальник';
-    const orderDate = params.get('date') || params.get('orderDate') || '—';
+    const orderDate = params.get('date') || params.get('orderDate') || '';
     const ids = params.getAll('ids[]').length ? params.getAll('ids[]') :
                 (params.get('ids') ? params.get('ids').split(',') : []);
 
     document.getElementById('title').textContent = supplier;
     document.getElementById('info').textContent  = `Позицій: ${ids.length}`;
-    document.getElementById('dateRow').textContent = `Дата замовлення: ${orderDate}`;
 
     document.getElementById('confirm').onclick = async () => {
       const resBox = document.getElementById('res');
       resBox.textContent = 'Відправляю...';
+      const payload = { status, ids, supplier };
+      if (orderDate) payload.orderDate = orderDate;
       try {
         const resp = await fetch('https://primary-production-eeb3.up.railway.app/webhook/aaf5a6e4-f47b-45ce-8f6b-e8e3600a2ab5', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status, ids, supplier, orderDate })
+          body: JSON.stringify(payload)
         });
         const text = await resp.text();
-        resBox.textContent = resp.ok ? 'Готово: ' + text : 'Помилка: ' + resp.status + ' ' + text;
+        resBox.textContent = resp.ok ? 'Запит успішно відправлений' : 'Помилка: ' + resp.status + ' ' + text;
       } catch (e) {
-        resBox.textContent = 'Помилка: ' + e;
+        resBox.textContent = 'Помилка відправки: ' + e;
       }
     };
   </script>
