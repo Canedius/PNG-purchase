@@ -424,9 +424,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (batchId) {
         // для batchId "unsorted" беремо ті, що без batchId
         const matchesUnsorted = batchId === "unsorted" && !i.batchId;
-        return i.status === "ordered" && (i.batchId === batchId || matchesUnsorted) && i._selected !== false;
+        return i.status === "ordered" && (i.batchId === batchId || matchesUnsorted) && i._selected === true;
       }
-      return i._selected !== false;
+      return i._selected === true;
     });
     if (selectedItems.length === 0) {
       alert("Немає відмічених товарів для друку.");
