@@ -606,11 +606,11 @@ document.addEventListener("DOMContentLoaded", () => {
         margin: { left: 20, right: 20, top: 12, bottom: 14 },
         tableWidth: "auto",
         columnStyles: {
-          0: { cellWidth: 200 },
-          1: { cellWidth: 60, halign: "center" },
+          0: { cellWidth: 180 },
+          1: { cellWidth: 50, halign: "center" },
           2: { cellWidth: 40, halign: "center" },
-          3: { cellWidth: 80 },
-          4: { cellWidth: 140, halign: "center" }
+          3: { cellWidth: 75 },
+          4: { cellWidth: 120, halign: "center" }
         },
         didDrawCell: function(data) {
           if (data.row.raw && data.row.raw[0] && data.row.raw[0].colSpan) return;
