@@ -735,7 +735,14 @@ document.addEventListener("DOMContentLoaded", () => {
       printFrame.onload = () => {
         console.log("[PDF] iframe onload -> focus+print");
         const w = printFrame.contentWindow;
-        if (w) w.focus();
+        if (w) {
+          try {
+            w.focus();
+            w.print();
+          } catch (e) {
+            console.warn("iframe print() failed", e);
+          }
+        }
         const key = String(supplier.key || supplier.name);
         const entry = printedStore[key] || { all: false, batches: [] };
         if (batchId) {
