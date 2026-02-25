@@ -785,8 +785,11 @@ document.addEventListener("DOMContentLoaded", () => {
         rows = [];
       }
       if (!Array.isArray(rows) || rows.length === 0) {
+        const msg = currentView === "ordered"
+          ? "Замовлених товарів поки немає."
+          : "Товарів для замовлення поки немає.";
         container.innerHTML = `<div class="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
-          Даних поки немає (вебхук повернув порожній результат).
+          ${msg}
         </div>`;
         return;
       }
