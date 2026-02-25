@@ -773,7 +773,24 @@ document.addEventListener("DOMContentLoaded", () => {
       const statusParam = currentView === "ordered" ? "ordered" : "to_buy";
       const resp = await fetch(`${dataUrl}?status=${encodeURIComponent(statusParam)}`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const rows = await resp.json();
+      const rawText = await resp.text();
+      let rows = [];
+      if (rawText && rawText.trim().length) {
+        try {
+          rows = JSON.parse(rawText);
+        } catch (e) {
+          throw new Error("Неможливо розпарсити JSON");
+        }
+      } else {
+        rows = [];
+      }
+      if (!Array.isArray(rows) || rows.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+          Даних поки немає (вебхук повернув порожній результат).
+        </div>`;
+        return;
+      }
+
       const bySupplier = {};
       rows.forEach(row => {
         const supplierName = (row.SupplierName && row.SupplierName.trim()) ? row.SupplierName.trim() : "Невідомий постачальник";
