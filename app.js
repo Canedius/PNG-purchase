@@ -615,8 +615,27 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         didDrawCell: function(data) {
           if (data.row.raw && data.row.raw[0] && data.row.raw[0].colSpan) return;
-          // Фото (тимчасово вимкнено)
-          if (data.section === "body" && data.column.index === 1) { data.cell.text = [""]; return; }
+          // Фото
+          if (data.section === "body" && data.column.index === 1) {
+            const raw = data.row.raw?.[1];
+            const url = raw?.image || raw;
+            const imgEntry = photoMap.get(url) || { data: placeholderDataUrl, format: "PNG" };
+            data.cell.text = [""]; // прибираємо будь‑який текст/лінк
+            if (!imgEntry?.data || imgEntry.data.length < 20) return;
+            // Заливаємо фон білим, щоб перекрити можливий текст
+            doc.setFillColor(255, 255, 255);
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, "F");
+            const w = Math.min(42, data.cell.width - 8);
+            const h = Math.min(42, data.cell.height - 8);
+            const x = data.cell.x + (data.cell.width - w) / 2;
+            const y = data.cell.y + (data.cell.height - h) / 2;
+            try {
+              doc.addImage(imgEntry.data, imgEntry.format || "PNG", x, y, w, h);
+            } catch (e) {
+              console.warn("Photo addImage failed", e);
+            }
+            return;
+          }
           // Штрихкод
           if (data.section === "body" && data.column.index === pdfColumns.length - 1) {
             if (data.cell.raw === null) return;
