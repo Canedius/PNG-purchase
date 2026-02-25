@@ -424,35 +424,36 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function generatePdf(supplier, batchId = null) {
-    const debugInfo = supplier.items.map(i => ({
-      id: i.id,
-      order: i.orderNumber,
-      status: i.status,
-      batch: i.batchId,
-      selected: i._selected
-    }));
-    const selectedItems = supplier.items.filter(i => {
+    try {
+      const debugInfo = supplier.items.map(i => ({
+        id: i.id,
+        order: i.orderNumber,
+        status: i.status,
+        batch: i.batchId,
+        selected: i._selected
+      }));
+      const selectedItems = supplier.items.filter(i => {
+        if (batchId) {
+          // для batchId "unsorted" беремо ті, що без batchId
+          const matchesUnsorted = batchId === "unsorted" && !i.batchId;
+          return i.status === "ordered" && (i.batchId === batchId || matchesUnsorted) && i._selected === true;
+        }
+        return i._selected === true;
+      });
+      console.groupCollapsed(`[PDF] ${supplier.name} batch=${batchId || "all"}`);
+      console.log("Всього товарів:", supplier.items.length, "Обрано:", selectedItems.length);
       if (batchId) {
-        // для batchId "unsorted" беремо ті, що без batchId
-        const matchesUnsorted = batchId === "unsorted" && !i.batchId;
-        return i.status === "ordered" && (i.batchId === batchId || matchesUnsorted) && i._selected === true;
+        const dropped = debugInfo.filter(i => !(i.status === "ordered" && (i.batch === batchId || (batchId === "unsorted" && !i.batch)) && i.selected));
+        console.log("Пропущені для batch:", dropped.slice(0, 10));
+      } else {
+        const dropped = debugInfo.filter(i => !i.selected);
+        console.log("Не вибрані:", dropped.slice(0, 10));
       }
-      return i._selected === true;
-    });
-    console.groupCollapsed(`[PDF] ${supplier.name} batch=${batchId || "all"}`);
-    console.log("Всього товарів:", supplier.items.length, "Обрано:", selectedItems.length);
-    if (batchId) {
-      const dropped = debugInfo.filter(i => !(i.status === "ordered" && (i.batch === batchId || (batchId === "unsorted" && !i.batch)) && i.selected));
-      console.log("Пропущені для batch:", dropped.slice(0, 10));
-    } else {
-      const dropped = debugInfo.filter(i => !i.selected);
-      console.log("Не вибрані:", dropped.slice(0, 10));
-    }
-    console.groupEnd();
-    if (selectedItems.length === 0) {
-      alert("Немає відмічених товарів для друку.");
-      return;
-    }
+      console.groupEnd();
+      if (selectedItems.length === 0) {
+        alert("Немає відмічених товарів для друку.");
+        return;
+      }
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     loadRoboto(doc);
@@ -480,12 +481,12 @@ document.addEventListener("DOMContentLoaded", () => {
         : (selectedItems[0]?.raw?.OrderDate
             ? new Date(selectedItems[0].raw.OrderDate).toISOString().slice(0,10)
             : "");
-    if (idsForQr.length) {
-      const confirmBase = "https://canedius.github.io/PNG-purchase/confirm.html";
-      const query = `status=received&supplier=${encodeURIComponent(supplier.name)}&` +
-                    idsForQr.map(id => `ids[]=${encodeURIComponent(id)}`).join("&") +
-                    (orderDateParam ? `&date=${encodeURIComponent(orderDateParam)}` : "");
-      const targetUrl = `${confirmBase}?${query}`;
+      if (idsForQr.length) {
+        const confirmBase = "https://canedius.github.io/PNG-purchase/confirm.html";
+        const query = `status=received&supplier=${encodeURIComponent(supplier.name)}&` +
+                      idsForQr.map(id => `ids[]=${encodeURIComponent(id)}`).join("&") +
+                      (orderDateParam ? `&date=${encodeURIComponent(orderDateParam)}` : "");
+        const targetUrl = `${confirmBase}?${query}`;
       const pageWidth = doc.internal.pageSize.getWidth();
       const placeQr = (dataUrl) => {
         const qrSize = 140;
@@ -728,26 +729,32 @@ document.addEventListener("DOMContentLoaded", () => {
     doc.setFontSize(12);
     doc.text(`Усього позицій: ${selectedItems.length}`, 40, summaryY);
 
-    doc.autoPrint();
-    const dataUri = doc.output("dataurlstring");
-    printFrame.onload = () => {
-      const w = printFrame.contentWindow;
-      if (w) w.focus();
-      const key = String(supplier.key || supplier.name);
-      const entry = printedStore[key] || { all: false, batches: [] };
-      if (batchId) {
-        if (!entry.batches.includes(batchId)) entry.batches.push(batchId);
-        if (!supplier._printedBatches.includes(batchId)) supplier._printedBatches.push(batchId);
-      } else {
-        entry.all = true;
-        supplier._printed = true;
-      }
-      printedStore[key] = entry;
-      savePrintedStore(printedStore);
-      supplier._printRequested = false;
-      renderSuppliers();
-    };
-    printFrame.src = dataUri;
+      doc.autoPrint();
+      const dataUri = doc.output("dataurlstring");
+      console.log("[PDF] dataurl length:", dataUri.length);
+      printFrame.onload = () => {
+        console.log("[PDF] iframe onload -> focus+print");
+        const w = printFrame.contentWindow;
+        if (w) w.focus();
+        const key = String(supplier.key || supplier.name);
+        const entry = printedStore[key] || { all: false, batches: [] };
+        if (batchId) {
+          if (!entry.batches.includes(batchId)) entry.batches.push(batchId);
+          if (!supplier._printedBatches.includes(batchId)) supplier._printedBatches.push(batchId);
+        } else {
+          entry.all = true;
+          supplier._printed = true;
+        }
+        printedStore[key] = entry;
+        savePrintedStore(printedStore);
+        supplier._printRequested = false;
+        renderSuppliers();
+      };
+      printFrame.src = dataUri;
+    } catch (err) {
+      console.error("generatePdf error", err);
+      alert("Помилка генерації PDF (див. консоль).");
+    }
   }
 
   async function loadData() {
