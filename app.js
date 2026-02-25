@@ -634,17 +634,17 @@ document.addEventListener("DOMContentLoaded", () => {
         startY: currentY,
         head: [pdfColumns],
         body: groupBody,
-        styles: { fontSize: 10, font: fontReady ? "Roboto" : "helvetica", overflow: "linebreak", cellPadding: 6 },
+        styles: { fontSize: 10, font: fontReady ? "Roboto" : "helvetica", overflow: "linebreak", cellPadding: 6, cellWidth: "wrap" },
         headStyles: { fillColor: [79, 70, 229], textColor: 255, font: fontReady ? "Roboto" : "helvetica", fontStyle: "bold" },
         alternateRowStyles: { fillColor: [235, 242, 255] },
         margin: { left: 20, right: 20, top: 12, bottom: 14 },
-        tableWidth: "auto",
+        tableWidth: "wrap",
         columnStyles: {
-          0: { cellWidth: 180 },
-          1: { cellWidth: 50, halign: "center" },
-          2: { cellWidth: 40, halign: "center" },
-          3: { cellWidth: 75 },
-          4: { cellWidth: 120, halign: "center" }
+          0: { cellWidth: 160 },
+          1: { cellWidth: 44, halign: "center" },
+          2: { cellWidth: 34, halign: "center" },
+          3: { cellWidth: 70 },
+          4: { cellWidth: 90, halign: "center" }
         },
         didDrawCell: function(data) {
           if (data.row.raw && data.row.raw[0] && data.row.raw[0].colSpan) return;
