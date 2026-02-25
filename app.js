@@ -424,6 +424,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function generatePdf(supplier, batchId = null) {
+    const debugInfo = supplier.items.map(i => ({
+      id: i.id,
+      order: i.orderNumber,
+      status: i.status,
+      batch: i.batchId,
+      selected: i._selected
+    }));
     const selectedItems = supplier.items.filter(i => {
       if (batchId) {
         // для batchId "unsorted" беремо ті, що без batchId
@@ -432,6 +439,16 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       return i._selected === true;
     });
+    console.groupCollapsed(`[PDF] ${supplier.name} batch=${batchId || "all"}`);
+    console.log("Всього товарів:", supplier.items.length, "Обрано:", selectedItems.length);
+    if (batchId) {
+      const dropped = debugInfo.filter(i => !(i.status === "ordered" && (i.batch === batchId || (batchId === "unsorted" && !i.batch)) && i.selected));
+      console.log("Пропущені для batch:", dropped.slice(0, 10));
+    } else {
+      const dropped = debugInfo.filter(i => !i.selected);
+      console.log("Не вибрані:", dropped.slice(0, 10));
+    }
+    console.groupEnd();
     if (selectedItems.length === 0) {
       alert("Немає відмічених товарів для друку.");
       return;
