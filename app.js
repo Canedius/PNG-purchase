@@ -602,7 +602,7 @@ document.addEventListener("DOMContentLoaded", () => {
           { image: photoVal, styles: { minCellHeight: 40 } },
           item.quantity,
           item.sku,
-          firstInGroup ? { content: orderNum, rowSpan: items.length, styles: { halign: "center", valign: "middle", minCellHeight: MIN_H } } : null
+          firstInGroup ? { content: "", orderCode: orderNum, rowSpan: items.length, styles: { halign: "center", valign: "middle", minCellHeight: MIN_H } } : null
         ]);
       });
 
@@ -663,8 +663,8 @@ document.addEventListener("DOMContentLoaded", () => {
           // Штрихкод
           if (data.section === "body" && data.column.index === pdfColumns.length - 1) {
             if (data.cell.raw === null) return;
-            if (data.cell.raw && data.cell.raw.content === undefined && data.cell.raw.rowSpan === undefined) return;
-            const code = (data.cell.raw?.content || data.cell.raw || "").toString().trim();
+            if (data.cell.raw && data.cell.raw.content === undefined && data.cell.raw.rowSpan === undefined && data.cell.raw.orderCode === undefined) return;
+            const code = (data.cell.raw?.orderCode || data.cell.raw?.content || data.cell.raw || "").toString().trim();
             data.cell.text = [""];
             if (code && !barcodeMap.has(code)) {
               const canvas = document.createElement("canvas");
