@@ -196,11 +196,15 @@ document.addEventListener("DOMContentLoaded", () => {
           ? new Date(rawTime).toLocaleString("uk-UA")
           : (firstItem?.dateOrder && firstItem.dateOrder !== "-" ? firstItem.dateOrder : null);
         const tsPart = Number(batchId.toString().split("-")[0]);
+        const tsMs = !Number.isNaN(tsPart) && tsPart > 0 ? tsPart * 60000 : null;
+        const hasTs = !!tsMs;
         const batchLabel = batchId === "current"
           ? "Поточні"
           : batchId === "unsorted"
             ? (fallbackDate ? `Перенесено: ${fallbackDate}` : "Імпортовано")
-            : (!Number.isNaN(tsPart) ? new Date(tsPart).toLocaleString("uk-UA") : `Партія ${batchId}`);
+            : hasTs
+              ? new Date(tsMs).toLocaleString("uk-UA")
+              : (fallbackDate ? `Перенесено: ${fallbackDate}` : `Партія ${batchId}`);
         const printed = supplier._printedBatches.includes(batchId);
         const showHeader = currentView === "ordered";
         const highlight = highlightBatch && highlightBatch.supplier === idx && highlightBatch.batchId === batchId;
@@ -530,12 +534,21 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!photoMap.has(photoKey)) photoMap.set(photoKey, null);
     });
 
-    const placeholderDataUrl = defaultPhoto;
+    const placeholderEntry = { data: defaultPhoto, format: "PNG", ratio: 1 };
+    const getRatio = (dataUrl) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const r = img.width && img.height ? img.width / img.height : 1;
+        resolve(r || 1);
+      };
+      img.onerror = () => resolve(1);
+      img.src = dataUrl;
+    });
     const toDataUrl = async (url) => {
-      if (!url) return { data: placeholderDataUrl, format: "PNG" };
+      if (!url) return placeholderEntry;
       if (url.startsWith("data:image/")) {
         const fmt = url.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-        return { data: url, format: fmt };
+        return { data: url, format: fmt, ratio: 1 };
       }
       try {
         const resp = await fetch(url);
@@ -549,9 +562,10 @@ document.addEventListener("DOMContentLoaded", () => {
           fr.readAsDataURL(blob);
         });
         const fmt = dataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-        return { data: dataUrl, format: fmt };
+        const ratio = await getRatio(dataUrl);
+        return { data: dataUrl, format: fmt, ratio };
       } catch (e) {
-        return { data: placeholderDataUrl, format: "PNG" };
+        return placeholderEntry;
       }
     };
     for (const key of photoMap.keys()) {
@@ -560,6 +574,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const groups = Object.entries(groupedForPdf);
+    const drawnBarcodes = new Set();
+    const drawnBarcodes = new Set();
     let currentY = Math.max(headerBottom + 16, line1Y + (ttnValue ? 70 : 54)); // відступ під шапкою і QR
     const pageHeight = doc.internal.pageSize.getHeight();
     groups.forEach(([orderNum, items], idxGroup) => {
@@ -584,7 +600,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const photoVal = item.photo || defaultPhoto;
         groupBody.push([
           item.productName,
-          { image: photoVal },
+          { image: photoVal, styles: { minCellHeight: 40 } },
           item.quantity,
           item.sku,
           firstInGroup ? { content: orderNum, rowSpan: items.length, styles: { halign: "center", valign: "middle", minCellHeight: MIN_H } } : null
@@ -619,16 +635,23 @@ document.addEventListener("DOMContentLoaded", () => {
           if (data.section === "body" && data.column.index === 1) {
             const raw = data.row.raw?.[1];
             const url = raw?.image || raw;
-            const imgEntry = photoMap.get(url) || { data: placeholderDataUrl, format: "PNG" };
+            const imgEntry = photoMap.get(url) || placeholderEntry;
             data.cell.text = [""]; // прибираємо будь‑який текст/лінк
             if (!imgEntry?.data || imgEntry.data.length < 20) return;
             // Заливаємо фон білим, щоб перекрити можливий текст
             doc.setFillColor(255, 255, 255);
             doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, "F");
-            const boxW = Math.min(48, data.cell.width - 8);
-            const boxH = Math.min(48, data.cell.height - 8);
-            const w = boxW;
-            const h = boxH;
+            const maxW = Math.min(36, data.cell.width - 10);
+            const maxH = Math.min(36, data.cell.height - 10);
+            const ratio = imgEntry.ratio || 1;
+            let w, h;
+            if (ratio >= 1) {
+              w = maxW;
+              h = Math.min(maxH, w / ratio);
+            } else {
+              h = maxH;
+              w = Math.min(maxW, h * ratio);
+            }
             const x = data.cell.x + (data.cell.width - w) / 2;
             const y = data.cell.y + (data.cell.height - h) / 2;
             try {
@@ -657,7 +680,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const BAR_W = 120;
             const BAR_H = 42;
             const TEXT_GAP = 6;
-            if (img) {
+            if (img && !drawnBarcodes.has(code)) {
               const drawWidth = Math.min(BAR_W, data.cell.width - 6);
               const maxHeightForCell = Math.max(20, data.cell.height - 16);
               const drawHeight = Math.min(BAR_H, maxHeightForCell - 12);
@@ -675,6 +698,7 @@ document.addEventListener("DOMContentLoaded", () => {
               doc.text(code, data.cell.x + data.cell.width / 2, y + drawHeight + 8, { align: "center" });
               doc.setFontSize(prevSize);
               doc.setTextColor(prevColor);
+              drawnBarcodes.add(code);
             }
             data.cell.text = [""];
           }
