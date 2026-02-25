@@ -625,8 +625,10 @@ document.addEventListener("DOMContentLoaded", () => {
             // Заливаємо фон білим, щоб перекрити можливий текст
             doc.setFillColor(255, 255, 255);
             doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, "F");
-            const w = Math.min(42, data.cell.width - 8);
-            const h = Math.min(42, data.cell.height - 8);
+            const boxW = Math.min(48, data.cell.width - 8);
+            const boxH = Math.min(48, data.cell.height - 8);
+            const w = boxW;
+            const h = boxH;
             const x = data.cell.x + (data.cell.width - w) / 2;
             const y = data.cell.y + (data.cell.height - h) / 2;
             try {
@@ -641,6 +643,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data.cell.raw === null) return;
             if (data.cell.raw && data.cell.raw.content === undefined && data.cell.raw.rowSpan === undefined) return;
             const code = (data.cell.raw?.content || data.cell.raw || "").toString().trim();
+            data.cell.text = [""];
             if (code && !barcodeMap.has(code)) {
               const canvas = document.createElement("canvas");
               try {
@@ -723,6 +726,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!bySupplier[supplierName]) bySupplier[supplierName] = { name: supplierName, key: (row.SupplierID || supplierName), items: [] };
         const dateIso = row.OrderDate ? new Date(row.OrderDate).toISOString().slice(0,10) : "";
         const status = row.procurement_status === "ordered" ? "ordered" : "new";
+        let batchId = row.batchId || null;
+        if (status === "ordered" && !batchId) {
+          const ts = row.updatedAt || row.createdAt || row.OrderDate;
+          batchId = ts ? Math.floor(new Date(ts).getTime() / 60000).toString() : "unsorted";
+        }
         bySupplier[supplierName].items.push({
           id: row.id ?? null,
           dateOrder: dateIso || "-",
@@ -735,6 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
           orderLink: row.OrderLink || "#",
           photo: row.photo || null,
           status,
+          batchId,
           raw: row
         });
       });
