@@ -575,7 +575,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const groups = Object.entries(groupedForPdf);
     const drawnBarcodes = new Set();
-    const drawnBarcodes = new Set();
     let currentY = Math.max(headerBottom + 16, line1Y + (ttnValue ? 70 : 54)); // відступ під шапкою і QR
     const pageHeight = doc.internal.pageSize.getHeight();
     groups.forEach(([orderNum, items], idxGroup) => {
