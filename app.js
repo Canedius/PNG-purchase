@@ -23,6 +23,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const pageLogo = document.getElementById("pageLogo");
   const tabAll = document.getElementById("tabAll");
   const tabOrdered = document.getElementById("tabOrdered");
+  const oneOffCard = document.getElementById("oneOffCard");
+  const oneOffSupplier = document.getElementById("oneOffSupplier");
+  const oneOffSupplierNew = document.getElementById("oneOffSupplierNew");
+  const oneOffOrder = document.getElementById("oneOffOrder");
+  const oneOffDate = document.getElementById("oneOffDate");
+  const oneOffName = document.getElementById("oneOffName");
+  const oneOffSku = document.getElementById("oneOffSku");
+  const oneOffQty = document.getElementById("oneOffQty");
+  const oneOffLink = document.getElementById("oneOffLink");
+  const oneOffPhoto = document.getElementById("oneOffPhoto");
+  const oneOffAdd = document.getElementById("oneOffAdd");
+  const oneOffMsg = document.getElementById("oneOffMsg");
   const { jsPDF } = window.jspdf;
   let logoDataPromise = null;
   let currentView = "new"; // new | ordered
@@ -791,6 +803,7 @@ document.addEventListener("DOMContentLoaded", () => {
         container.innerHTML = `<div class="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
           ${msg}
         </div>`;
+        refreshOneOffSuppliers();
         return;
       }
 
@@ -832,6 +845,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
       renderSuppliers();
+      refreshOneOffSuppliers();
     } catch (e) {
       console.error("Fetch error", e);
       container.innerHTML = `<div class="p-6 text-center text-red-600 border border-dashed border-red-300 rounded-xl bg-white">
@@ -861,6 +875,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function setTabState(view) {
     currentView = view;
     try { localStorage.setItem("tabView", view); } catch (e) {}
+    if (oneOffCard) {
+      oneOffCard.style.display = view === "new" ? "block" : "none";
+    }
     if (view === "new") {
       tabAll.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold bg-gradient-to-r from-indigo-50 to-amber-50 text-indigo-800 shadow-inner";
       tabOrdered.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold text-slate-600 hover:bg-slate-50";
@@ -883,6 +900,65 @@ document.addEventListener("DOMContentLoaded", () => {
 
   tabAll.addEventListener("click", () => setTabState("new"));
   tabOrdered.addEventListener("click", () => setTabState("ordered"));
+
+  function refreshOneOffSuppliers() {
+    if (!oneOffSupplier) return;
+    const current = oneOffSupplier.value;
+    oneOffSupplier.innerHTML = "";
+    const optNew = document.createElement("option");
+    optNew.value = "__new__";
+    optNew.textContent = "Новий постачальник";
+    oneOffSupplier.appendChild(optNew);
+    suppliers.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.name;
+      opt.textContent = s.name;
+      oneOffSupplier.appendChild(opt);
+    });
+    if (current) oneOffSupplier.value = current;
+  }
+
+  function addOneOffItem() {
+    oneOffMsg.textContent = "";
+    const supplierVal = oneOffSupplier.value;
+    const supplierName = supplierVal === "__new__" ? (oneOffSupplierNew.value || "").trim() : supplierVal;
+    const orderNumber = (oneOffOrder.value || "").trim();
+    const productName = (oneOffName.value || "").trim();
+    if (!supplierName || !orderNumber || !productName) {
+      oneOffMsg.textContent = "Заповніть постачальника, номер замовлення та назву товару.";
+      return;
+    }
+    let target = suppliers.find(s => s.name === supplierName);
+    if (!target) {
+      target = { name: supplierName, key: supplierName, items: [], _printedBatches: [], _ttnByBatch: {} };
+      suppliers.push(target);
+    }
+    const dateOrder = (oneOffDate.value || new Date().toISOString().slice(0,10));
+    const qty = Number(oneOffQty.value) > 0 ? Number(oneOffQty.value) : 1;
+    const newItem = {
+      id: null,
+      dateOrder,
+      orderNumber,
+      productName,
+      sku: (oneOffSku.value || "").trim(),
+      quantity: qty,
+      purchasePrice: 0,
+      barcode: orderNumber,
+      orderLink: (oneOffLink.value || "#").trim(),
+      photo: (oneOffPhoto.value || "").trim() || null,
+      status: "new",
+      batchId: null,
+      raw: {}
+    };
+    target.items.unshift(newItem);
+    oneOffMsg.textContent = "Додано!";
+    renderSuppliers();
+    refreshOneOffSuppliers();
+  }
+
+  if (oneOffAdd) {
+    oneOffAdd.addEventListener("click", addOneOffItem);
+  }
 
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".confirm-print");

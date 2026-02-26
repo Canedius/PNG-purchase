@@ -50,6 +50,58 @@
       </button>
     </div>
 
+    <div id="oneOffCard" class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="text-sm font-semibold text-slate-700">Додати одноразовий товар</div>
+        <span class="text-xs text-slate-500">Показується лише у «Поточні»</span>
+      </div>
+      <div class="grid gap-3 md:grid-cols-3">
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Постачальник</label>
+          <select id="oneOffSupplier" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Новий постачальник (якщо треба)</label>
+          <input id="oneOffSupplierNew" type="text" placeholder="Напр. Новий постачальник" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Номер замовлення*</label>
+          <input id="oneOffOrder" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Дата замовлення</label>
+          <input id="oneOffDate" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Назва товару*</label>
+          <input id="oneOffName" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Артикул</label>
+          <input id="oneOffSku" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Кількість</label>
+          <input id="oneOffQty" type="number" min="1" value="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Посилання на замовлення</label>
+          <input id="oneOffLink" type="url" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs text-slate-500">Фото (URL)</label>
+          <input id="oneOffPhoto" type="url" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </div>
+      </div>
+      <div class="flex items-center justify-end">
+        <button id="oneOffAdd" class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-700 transition text-sm font-semibold">
+          Додати у поточні
+        </button>
+      </div>
+      <div id="oneOffMsg" class="text-xs text-rose-600"></div>
+    </div>
+
     <div id="suppliersContainer" class="space-y-6"></div>
   </div>
 
