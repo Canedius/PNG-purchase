@@ -28,10 +28,19 @@
           <h1 class="text-2xl font-semibold text-slate-900">Таблиця закупівлі</h1>
         </div>
       </div>
-      <button id="refreshBtn"
-        class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-white font-medium shadow hover:bg-amber-600 transition">
-        Оновити дані з KeyCRM
-      </button>
+      <div class="flex items-center gap-2">
+        <button id="addSupplierBtn"
+          class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white font-medium shadow hover:bg-indigo-700 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Додати постачальника + товар
+        </button>
+        <button id="refreshBtn"
+          class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-white font-medium shadow hover:bg-amber-600 transition">
+          Оновити дані з KeyCRM
+        </button>
+      </div>
     </header>
 
     <div class="inline-flex rounded-full border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -66,6 +75,10 @@
           <input id="mOrder" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
         </label>
         <div></div>
+        <label id="mSupplierWrap" class="text-sm space-y-1 md:col-span-2 hidden">
+          <span class="text-xs text-slate-500">Постачальник*</span>
+          <input id="mSupplier" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Назва постачальника" />
+        </label>
         <label class="text-sm space-y-1 md:col-span-2">
           <span class="text-xs text-slate-500">Назва товару*</span>
           <input id="mName" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />

@@ -37,6 +37,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const mSave = document.getElementById("mSave");
   const mCancel = document.getElementById("mCancel");
   const mClose = document.getElementById("oneOffClose");
+  const mSupplierWrap = document.getElementById("mSupplierWrap");
+  const mSupplier = document.getElementById("mSupplier");
+  const addSupplierBtn = document.getElementById("addSupplierBtn");
   let oneOffTarget = { supplier: null, batch: null, date: null };
   const { jsPDF } = window.jspdf;
   let logoDataPromise = null;
@@ -941,6 +944,11 @@ document.addEventListener("DOMContentLoaded", () => {
     mSku.value = "";
     if (mPhotoFile) mPhotoFile.value = "";
     mMsg.textContent = "";
+    if (mSupplierWrap) {
+      const isNewSupplier = supplierIndex === null || supplierIndex === undefined;
+      mSupplierWrap.classList.toggle("hidden", !isNewSupplier);
+      if (mSupplier && isNewSupplier) mSupplier.value = "";
+    }
     oneOffModal.classList.remove("hidden");
   }
   function closeOneOffModal() {
@@ -978,9 +986,22 @@ document.addEventListener("DOMContentLoaded", () => {
   async function saveOneOff() {
     mMsg.textContent = "";
     const sIdx = oneOffTarget.supplier;
-    if (sIdx === null || sIdx === undefined) return closeOneOffModal();
-    let supplier = suppliers[sIdx];
-    if (!supplier) return closeOneOffModal();
+    let supplier = null;
+    if (sIdx === null || sIdx === undefined) {
+      const supName = (mSupplier?.value || "").trim();
+      if (!supName) {
+        mMsg.textContent = "Вкажіть постачальника.";
+        return;
+      }
+      supplier = suppliers.find(s => s.name === supName);
+      if (!supplier) {
+        supplier = { name: supName, key: supName, items: [], _printedBatches: [], _ttnByBatch: {} };
+        suppliers.push(supplier);
+      }
+    } else {
+      supplier = suppliers[sIdx];
+      if (!supplier) return closeOneOffModal();
+    }
     const orderNumber = (mOrder.value || "").trim();
     const productName = (mName.value || "").trim();
     if (!orderNumber || !productName) {
@@ -1067,6 +1088,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (oneOffModal) {
     oneOffModal.addEventListener("click", (e) => {
       if (e.target === oneOffModal) closeOneOffModal();
+    });
+  }
+  if (addSupplierBtn) {
+    addSupplierBtn.addEventListener("click", () => {
+      const today = new Date().toISOString().slice(0, 10);
+      openOneOffModal(null, null, today);
     });
   }
 
