@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
@@ -54,6 +54,42 @@
   </div>
 
   <iframe id="printFrame" style="position:fixed; right:0; bottom:0; width:0; height:0; border:0;" title="print-frame"></iframe>
+
+  <!-- Modal одноразового товару -->
+  <div id="oneOffModal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 relative">
+      <button id="oneOffClose" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600">&times;</button>
+      <h3 class="text-lg font-semibold mb-4">Додати одноразовий товар</h3>
+      <div class="grid gap-3 md:grid-cols-2">
+        <label class="text-sm space-y-1">
+          <span class="text-xs text-slate-500">Номер замовлення*</span>
+          <input id="mOrder" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </label>
+        <div></div>
+        <label class="text-sm space-y-1 md:col-span-2">
+          <span class="text-xs text-slate-500">Назва товару*</span>
+          <input id="mName" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </label>
+        <label class="text-sm space-y-1">
+          <span class="text-xs text-slate-500">Кількість</span>
+          <input id="mQty" type="number" min="1" value="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </label>
+        <label class="text-sm space-y-1">
+          <span class="text-xs text-slate-500">Артикул</span>
+          <input id="mSku" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </label>
+        <label class="text-sm space-y-1">
+          <span class="text-xs text-slate-500">Фото (файл)</span>
+          <input id="mPhotoFile" type="file" accept="image/*" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+        </label>
+      </div>
+      <div id="mMsg" class="text-xs text-rose-600 mt-2"></div>
+      <div class="flex items-center justify-end gap-3 mt-4">
+        <button id="mCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">Скасувати</button>
+        <button id="mSave" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow">Додати</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js" defer></script>
 </body>

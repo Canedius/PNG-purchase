@@ -1,4 +1,4 @@
-// Увесь JS винесено окремо, готуємося до підключення реального API.
+﻿// Увесь JS винесено окремо, готуємося до підключення реального API.
 
 document.addEventListener("DOMContentLoaded", () => {
   // Дані приходять з вебхука; контейнер для збереження
@@ -6,6 +6,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const dataUrl = "https://primary-production-eeb3.up.railway.app/webhook/1c480cd8-acda-4af4-92cd-75b452e6f159";
   const updateUrl = "https://primary-production-eeb3.up.railway.app/webhook/26cb3bb4-e19f-4037-8291-6525da83be45";
   const receiveWebhook = "https://primary-production-eeb3.up.railway.app/webhook/aaf5a6e4-f47b-45ce-8f6b-e8e3600a2ab5"; // вебхук для статусу 'received'
+  const createUrl = "https://primary-production-eeb3.up.railway.app/webhook/aad0017a-9bac-4968-ad7a-fdb13e03a33e"; // створення одноразового товару
+  const orderLinkBase = "https://pngstudio.keycrm.app/app/orders/view/";
+  const imgbbKey = "94bdaee3905112e98422049edbc5347f"; // ключ imgbb для аплоуду фото
 
   const columns = [
     "Дата замов", "Номер замов", "Фото",
@@ -23,6 +26,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const pageLogo = document.getElementById("pageLogo");
   const tabAll = document.getElementById("tabAll");
   const tabOrdered = document.getElementById("tabOrdered");
+  // Modal одноразового товару
+  const oneOffModal = document.getElementById("oneOffModal");
+  const mOrder = document.getElementById("mOrder");
+  const mName = document.getElementById("mName");
+  const mQty = document.getElementById("mQty");
+  const mSku = document.getElementById("mSku");
+  const mPhotoFile = document.getElementById("mPhotoFile");
+  const mMsg = document.getElementById("mMsg");
+  const mSave = document.getElementById("mSave");
+  const mCancel = document.getElementById("mCancel");
+  const mClose = document.getElementById("oneOffClose");
+  let oneOffTarget = { supplier: null, batch: null, date: null };
   const { jsPDF } = window.jspdf;
   let logoDataPromise = null;
   let currentView = "new"; // new | ordered
@@ -49,6 +64,20 @@ document.addEventListener("DOMContentLoaded", () => {
     try { localStorage.setItem(printedStoreKey, JSON.stringify(store)); } catch (e) {}
   };
   let printedStore = loadPrintedStore();
+  // Запам'ятовуємо, в яку партію додали одноразовий товар (ключ: orderNumber -> batchId)
+  const oneOffBatchKey = "zakupka_oneoff_batch_v1";
+  const loadOneOffBatches = () => {
+    try {
+      const raw = localStorage.getItem(oneOffBatchKey);
+      if (!raw) return {};
+      const obj = JSON.parse(raw);
+      return obj && typeof obj === "object" ? obj : {};
+    } catch (e) { return {}; }
+  };
+  const saveOneOffBatches = (map) => {
+    try { localStorage.setItem(oneOffBatchKey, JSON.stringify(map)); } catch (e) {}
+  };
+  let oneOffBatches = loadOneOffBatches();
 
   const renderMarkIcon = (idx) => markIcons[idx] || markIcons[0];
 
@@ -168,15 +197,22 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentView === "new") {
         html += `
           <div class="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-xl">
-            <div class="flex items-center gap-3">
-              <div class="text-lg font-semibold">${supplier.name}</div>
-            </div>
-            <div class="inline-flex items-center gap-2">
-              <button class="mark-btn inline-flex items-center justify-center bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 active:translate-y-0.5 transition px-2.5 py-1.5 rounded-md shadow-sm text-sm ${anySelected ? "" : "hidden"}"
-                              data-index="${idx}" title="Позначити замовлено" data-icon="${markIconIdx}">
-                ${renderMarkIcon(markIconIdx)}
-              </button>
-              <div class="icon-palette inline-flex gap-1"></div>
+              <div class="flex items-center gap-3">
+                <div class="text-lg font-semibold">${supplier.name}</div>
+              </div>
+              <div class="inline-flex items-center gap-2">
+                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white"
+                        data-supplier="${idx}" data-batch="" data-date="${visibleItems[0]?.dateOrder || ""}" title="Додати одноразовий товар">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  Додати
+                </button>
+                <button class="mark-btn inline-flex items-center justify-center bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 active:translate-y-0.5 transition px-2.5 py-1.5 rounded-md shadow-sm text-sm ${anySelected ? "" : "hidden"}"
+                                data-index="${idx}" title="Позначити замовлено" data-icon="${markIconIdx}">
+                  ${renderMarkIcon(markIconIdx)}
+                </button>
+                <div class="icon-palette inline-flex gap-1"></div>
               ${confirmPrintBtn}
             </div>
           </div>
@@ -219,6 +255,13 @@ document.addEventListener("DOMContentLoaded", () => {
                        data-supplier="${idx}" data-batch="${batchId}" placeholder="ТТН" value="${supplier._ttnByBatch[batchId] || ""}">
               </div>
               <div class="flex items-center gap-2">
+                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white"
+                        data-supplier="${idx}" data-batch="${batchId}" data-date="${firstItem?.dateOrder || fallbackDate || ""}" title="Додати одноразовий товар">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  Додати
+                </button>
                 ${printed ? `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6 9 17l-5-5"/>
@@ -634,17 +677,15 @@ document.addEventListener("DOMContentLoaded", () => {
         startY: currentY,
         head: [pdfColumns],
         body: groupBody,
-        styles: { fontSize: 10, font: fontReady ? "Roboto" : "helvetica", overflow: "linebreak", cellPadding: 6, cellWidth: "wrap" },
+        styles: { fontSize: 10, font: fontReady ? "Roboto" : "helvetica", overflow: "linebreak", cellPadding: 6, cellWidth: "auto" },
         headStyles: { fillColor: [79, 70, 229], textColor: 255, font: fontReady ? "Roboto" : "helvetica", fontStyle: "bold" },
         alternateRowStyles: { fillColor: [235, 242, 255] },
         margin: { left: 20, right: 20, top: 12, bottom: 14 },
-        tableWidth: "wrap",
+        tableWidth: 'auto',
         columnStyles: {
-          0: { cellWidth: 160 },
-          1: { cellWidth: 44, halign: "center" },
-          2: { cellWidth: 34, halign: "center" },
-          3: { cellWidth: 70 },
-          4: { cellWidth: 90, halign: "center" }
+          1: { halign: "center" },
+          2: { halign: "center" },
+          4: { halign: "center" }
         },
         didDrawCell: function(data) {
           if (data.row.raw && data.row.raw[0] && data.row.raw[0].colSpan) return;
@@ -791,25 +832,27 @@ document.addEventListener("DOMContentLoaded", () => {
         container.innerHTML = `<div class="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
           ${msg}
         </div>`;
+        refreshOneOffSuppliers();
         return;
       }
 
       const bySupplier = {};
       rows.forEach(row => {
-        const supplierName = (row.SupplierName && row.SupplierName.trim()) ? row.SupplierName.trim() : "Невідомий постачальник";
-        if (!bySupplier[supplierName]) bySupplier[supplierName] = { name: supplierName, key: (row.SupplierID || supplierName), items: [] };
-        const dateIso = row.OrderDate ? new Date(row.OrderDate).toISOString().slice(0,10) : "";
-        const status = row.procurement_status === "ordered" ? "ordered" : "new";
-        let batchId = row.batchId || null;
-        if (status === "ordered" && !batchId) {
-          const ts = row.updatedAt || row.createdAt || row.OrderDate;
-          batchId = ts ? Math.floor(new Date(ts).getTime() / 60000).toString() : "unsorted";
-        }
-        bySupplier[supplierName].items.push({
-          id: row.id ?? null,
-          dateOrder: dateIso || "-",
-          orderNumber: String(row.OrderID),
-          productName: row.ProductName || "",
+      const supplierName = (row.SupplierName && row.SupplierName.trim()) ? row.SupplierName.trim() : "Невідомий постачальник";
+      if (!bySupplier[supplierName]) bySupplier[supplierName] = { name: supplierName, key: (row.SupplierID || supplierName), items: [] };
+      const dateIso = row.OrderDate ? new Date(row.OrderDate).toISOString().slice(0,10) : "";
+      const status = row.procurement_status === "ordered" ? "ordered" : "new";
+      const orderKey = row.OrderID != null ? String(row.OrderID) : "";
+      let batchId = row.batchId || (orderKey && oneOffBatches[orderKey]) || null;
+      if (status === "ordered" && !batchId) {
+        const ts = row.updatedAt || row.createdAt || row.OrderDate;
+        batchId = ts ? Math.floor(new Date(ts).getTime() / 60000).toString() : "unsorted";
+      }
+      bySupplier[supplierName].items.push({
+        id: row.id ?? null,
+        dateOrder: dateIso || "-",
+        orderNumber: String(row.OrderID),
+        productName: row.ProductName || "",
           sku: row.SKU || "",
           quantity: row.Quantity || 0,
           purchasePrice: row.PurchasePrice || 0,
@@ -861,6 +904,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function setTabState(view) {
     currentView = view;
     try { localStorage.setItem("tabView", view); } catch (e) {}
+    if (oneOffModal) {
+      // Модалка відкривається лише по кнопці, але прихована за замовчуванням
+      oneOffModal.classList.add("hidden");
+    }
     if (view === "new") {
       tabAll.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold bg-gradient-to-r from-indigo-50 to-amber-50 text-indigo-800 shadow-inner";
       tabOrdered.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold text-slate-600 hover:bg-slate-50";
@@ -883,6 +930,156 @@ document.addEventListener("DOMContentLoaded", () => {
 
   tabAll.addEventListener("click", () => setTabState("new"));
   tabOrdered.addEventListener("click", () => setTabState("ordered"));
+
+  // === Модалка одноразового товару ===
+  function openOneOffModal(supplierIndex, batchId, dateDefault) {
+    if (!oneOffModal) return;
+    oneOffTarget = { supplier: supplierIndex, batch: batchId || null, date: dateDefault || null };
+    mOrder.value = "";
+    mName.value = "";
+    mQty.value = 1;
+    mSku.value = "";
+    if (mPhotoFile) mPhotoFile.value = "";
+    mMsg.textContent = "";
+    oneOffModal.classList.remove("hidden");
+  }
+  function closeOneOffModal() {
+    if (!oneOffModal) return;
+    oneOffModal.classList.add("hidden");
+  }
+  function fileToDataUrl(inputEl) {
+    return new Promise((resolve) => {
+      if (!inputEl || !inputEl.files || !inputEl.files[0]) return resolve(null);
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(inputEl.files[0]);
+    });
+  }
+
+  async function uploadToImgbb(dataUrl) {
+    if (!dataUrl) return null;
+    try {
+      const base64 = dataUrl.split(",")[1] || dataUrl;
+      const form = new FormData();
+      form.append("image", base64);
+      const resp = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+        method: "POST",
+        body: form
+      });
+      const json = await resp.json();
+      if (json && json.data && json.data.url) return json.data.url;
+    } catch (e) {
+      console.warn("imgbb upload failed", e);
+    }
+    return null;
+  }
+
+  async function saveOneOff() {
+    mMsg.textContent = "";
+    const sIdx = oneOffTarget.supplier;
+    if (sIdx === null || sIdx === undefined) return closeOneOffModal();
+    let supplier = suppliers[sIdx];
+    if (!supplier) return closeOneOffModal();
+    const orderNumber = (mOrder.value || "").trim();
+    const productName = (mName.value || "").trim();
+    if (!orderNumber || !productName) {
+      mMsg.textContent = "Вкажіть номер замовлення і назву товару.";
+      return;
+    }
+    const batchNumeric = oneOffTarget.batch ? Number(oneOffTarget.batch) : null;
+    let dateOrder = oneOffTarget.date || "";
+    // якщо дати нема, беремо її з batchId (число-хвилини)
+    if (!dateOrder && oneOffTarget.batch && !Number.isNaN(batchNumeric)) {
+      const dt = new Date(batchNumeric * 60000);
+      dateOrder = dt.toISOString().slice(0, 10);
+    }
+    if (!dateOrder) dateOrder = new Date().toISOString().slice(0,10);
+    let timestamp = `${dateOrder}T00:00:00.000Z`;
+    if (oneOffTarget.batch && !Number.isNaN(batchNumeric)) {
+      const dt = new Date(batchNumeric * 60000);
+      timestamp = dt.toISOString();
+    }
+    const qty = Number(mQty.value) > 0 ? Number(mQty.value) : 1;
+    const status = oneOffTarget.batch ? "ordered" : "new";
+    const photoDataUrl = await fileToDataUrl(mPhotoFile);
+    const photoUrl = await uploadToImgbb(photoDataUrl);
+    const newItem = {
+      id: null,
+      dateOrder,
+      orderNumber,
+      productName,
+      sku: (mSku.value || "").trim(),
+      quantity: qty,
+      purchasePrice: 0,
+      barcode: orderNumber,
+      orderLink: `${orderLinkBase}${orderNumber}`,
+      photo: photoUrl || photoDataUrl,
+      status,
+      batchId: oneOffTarget.batch,
+      _selected: status === "ordered",
+      raw: { OrderDate: timestamp, createdAt: timestamp, updatedAt: timestamp, batchId: oneOffTarget.batch }
+    };
+    supplier.items.unshift(newItem);
+    const batchKeyToStore = oneOffTarget.batch
+      ? oneOffTarget.batch
+      : (oneOffTarget.batch === "unsorted"
+        ? "unsorted"
+        : (batchNumeric !== null && !Number.isNaN(batchNumeric) ? batchNumeric.toString() : null));
+    if (batchKeyToStore) {
+      oneOffBatches[String(orderNumber)] = batchKeyToStore;
+      saveOneOffBatches(oneOffBatches);
+    }
+    // надсилаємо на бек
+    try {
+      const orderIdNum = Number(orderNumber);
+      const payload = {
+        OrderDate: timestamp,
+        OrderID: Number.isFinite(orderIdNum) ? orderIdNum : orderNumber,
+        ProductName: productName,
+        SKU: newItem.sku,
+        Quantity: qty,
+        PurchasePrice: 0,
+        SupplierName: supplier.name,
+        SupplierID: supplier.key || supplier.name,
+        OrderLink: newItem.orderLink,
+        procurement_status: status === "ordered" ? "ordered" : "to_buy",
+        photo: photoUrl || null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        batchId: oneOffTarget.batch || null
+      };
+      await fetch(createUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.warn("Create one-off failed", err);
+      mMsg.textContent = "Не вдалося відправити на бекенд, товар додано лише локально.";
+    }
+    closeOneOffModal();
+    renderSuppliers({ supplier: sIdx, batchId: oneOffTarget.batch, animate: true });
+  }
+  if (mSave) mSave.addEventListener("click", saveOneOff);
+  if (mCancel) mCancel.addEventListener("click", closeOneOffModal);
+  if (mClose) mClose.addEventListener("click", closeOneOffModal);
+  if (oneOffModal) {
+    oneOffModal.addEventListener("click", (e) => {
+      if (e.target === oneOffModal) closeOneOffModal();
+    });
+  }
+
+  // Кнопки "Додати" біля тасок
+  document.addEventListener("click", (e) => {
+    const addBtn = e.target.closest(".add-oneoff-btn");
+    if (addBtn) {
+      const sIdx = Number(addBtn.dataset.supplier);
+      const batch = addBtn.dataset.batch || null;
+      const date = addBtn.dataset.date || null;
+      openOneOffModal(sIdx, batch, date);
+    }
+  });
 
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".confirm-print");
