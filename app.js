@@ -686,6 +686,7 @@ document.addEventListener("DOMContentLoaded", () => {
         margin: { left: 20, right: 20, top: 12, bottom: 14 },
         tableWidth: 'auto',
         columnStyles: {
+          0: { cellWidth: 120 },
           1: { halign: "center" },
           2: { halign: "center" },
           4: { halign: "center" }
@@ -868,6 +869,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       });
       suppliers = Object.values(bySupplier);
+      // Новіші (за останнім оновленням серед товарів) показуємо першими
+      suppliers.sort((a, b) => {
+        const lastA = Math.max(...a.items.map(i => new Date(i.raw?.updatedAt || i.raw?.createdAt || i.raw?.OrderDate || 0).getTime() || 0));
+        const lastB = Math.max(...b.items.map(i => new Date(i.raw?.updatedAt || i.raw?.createdAt || i.raw?.OrderDate || 0).getTime() || 0));
+        return lastB - lastA;
+      });
       // Відновлюємо відмітки "Друковано" по ключу постачальника
       suppliers.forEach(s => {
         const key = String(s.key || s.name);
@@ -1008,6 +1015,10 @@ document.addEventListener("DOMContentLoaded", () => {
       mMsg.textContent = "Вкажіть номер замовлення і назву товару.";
       return;
     }
+    if (!/^\d+$/.test(orderNumber)) {
+      mMsg.textContent = "Номер замовлення має містити лише цифри.";
+      return;
+    }
     const batchNumeric = oneOffTarget.batch ? Number(oneOffTarget.batch) : null;
     let dateOrder = oneOffTarget.date || "";
     // якщо дати нема, беремо її з batchId (число-хвилини)
@@ -1054,6 +1065,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // надсилаємо на бек
     try {
       const orderIdNum = Number(orderNumber);
+      const supplierIdNum = Number(supplier.key);
+      const supplierIdPayload = Number.isFinite(supplierIdNum) ? supplierIdNum : null;
       const payload = {
         OrderDate: timestamp,
         OrderID: Number.isFinite(orderIdNum) ? orderIdNum : orderNumber,
@@ -1062,7 +1075,7 @@ document.addEventListener("DOMContentLoaded", () => {
         Quantity: qty,
         PurchasePrice: 0,
         SupplierName: supplier.name,
-        SupplierID: supplier.key || supplier.name,
+        SupplierID: supplierIdPayload,
         OrderLink: newItem.orderLink,
         procurement_status: status === "ordered" ? "ordered" : "to_buy",
         photo: photoUrl || null,
