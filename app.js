@@ -535,7 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const targetUrl = `${confirmBase}?${query}`;
       const pageWidth = doc.internal.pageSize.getWidth();
       const placeQr = (dataUrl) => {
-        const qrSize = 140;
+        const qrSize = 105;
         doc.addImage(dataUrl, "PNG", pageWidth - (qrSize + 24), qrY, qrSize, qrSize);
         qrBottom = qrY + qrSize;
       };
@@ -652,10 +652,11 @@ document.addEventListener("DOMContentLoaded", () => {
           textColor: [37, 99, 235],
           fontStyle: "bold",
           halign: "left",
-          cellPadding: { top: 6, bottom: 6, left: 6, right: 2 }
+          cellPadding: { top: 6, bottom: 6, left: 6, right: 2 },
+          minCellHeight: 0
         }
       }]);
-      const MIN_H = 68;
+      const MIN_H = 110;
       const seen = new Set();
       items.forEach((item, idx) => {
         const firstInGroup = idx === 0 && !seen.has(orderNum);
@@ -663,7 +664,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const photoVal = item.photo || defaultPhoto;
         groupBody.push([
           item.productName,
-          { image: photoVal, styles: { minCellHeight: 40 } },
+          { image: photoVal },
           item.quantity,
           item.sku,
           firstInGroup ? { content: "", orderCode: orderNum, rowSpan: items.length, styles: { halign: "center", valign: "middle", minCellHeight: MIN_H } } : null
@@ -681,15 +682,17 @@ document.addEventListener("DOMContentLoaded", () => {
         head: [pdfColumns],
         body: groupBody,
         styles: { fontSize: 10, font: fontReady ? "Roboto" : "helvetica", overflow: "linebreak", cellPadding: 6, cellWidth: "auto" },
+        bodyStyles: { minCellHeight: MIN_H },
         headStyles: { fillColor: [79, 70, 229], textColor: 255, font: fontReady ? "Roboto" : "helvetica", fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [235, 242, 255] },
+        alternateRowStyles: { fillColor: [255, 255, 255] },
         margin: { left: 20, right: 20, top: 12, bottom: 14 },
         tableWidth: 'auto',
         columnStyles: {
-          0: { cellWidth: 120 },
-          1: { halign: "center" },
-          2: { halign: "center" },
-          4: { halign: "center" }
+          0: { cellWidth: 150, valign: "middle" },
+          1: { cellWidth: 120, halign: "center", minCellHeight: 110, valign: "middle" },
+          2: { halign: "center", valign: "middle" },
+          3: { halign: "center", valign: "middle" },
+          4: { halign: "center", valign: "middle" }
         },
         didDrawCell: function(data) {
           if (data.row.raw && data.row.raw[0] && data.row.raw[0].colSpan) return;
@@ -703,8 +706,8 @@ document.addEventListener("DOMContentLoaded", () => {
             // Заливаємо фон білим, щоб перекрити можливий текст
             doc.setFillColor(255, 255, 255);
             doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, "F");
-            const maxW = Math.min(36, data.cell.width - 10);
-            const maxH = Math.min(36, data.cell.height - 10);
+            const maxW = Math.min(100, data.cell.width - 10);
+            const maxH = Math.min(100, data.cell.height - 10);
             const ratio = imgEntry.ratio || 1;
             let w, h;
             if (ratio >= 1) {
@@ -744,10 +747,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const TEXT_GAP = 6;
             if (img && !drawnBarcodes.has(code)) {
               const drawWidth = Math.min(BAR_W, data.cell.width - 6);
-              const maxHeightForCell = Math.max(20, data.cell.height - 16);
-              const drawHeight = Math.min(BAR_H, maxHeightForCell - 12);
+              const drawHeight = Math.min(BAR_H, data.cell.height * 0.4);
+              const totalContentH = drawHeight + 12;
               const x = data.cell.x + (data.cell.width - drawWidth) / 2;
-              const y = data.cell.y + 6;
+              const y = data.cell.y + (data.cell.height - totalContentH) / 2;
               try {
                 doc.addImage(img, "PNG", x, y, drawWidth, drawHeight);
               } catch (e) {
@@ -774,19 +777,15 @@ document.addEventListener("DOMContentLoaded", () => {
     doc.setFontSize(12);
     doc.text(`Усього позицій: ${selectedItems.length}`, 40, summaryY);
 
-      doc.autoPrint();
-      const dataUri = doc.output("dataurlstring");
-      console.log("[PDF] dataurl length:", dataUri.length);
+      const blob = doc.output("blob");
+      const blobUrl = URL.createObjectURL(blob);
       printFrame.onload = () => {
-        console.log("[PDF] iframe onload -> focus+print");
-        const w = printFrame.contentWindow;
-        if (w) {
-          try {
-            w.focus();
-            w.print();
-          } catch (e) {
-            console.warn("iframe print() failed", e);
-          }
+        try {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+        } catch (e) {
+          console.warn("iframe print() failed, opening in new tab", e);
+          window.open(blobUrl);
         }
         const key = String(supplier.key || supplier.name);
         const entry = printedStore[key] || { all: false, batches: [] };
@@ -802,7 +801,7 @@ document.addEventListener("DOMContentLoaded", () => {
         supplier._printRequested = false;
         renderSuppliers();
       };
-      printFrame.src = dataUri;
+      printFrame.src = blobUrl;
     } catch (err) {
       console.error("generatePdf error", err);
       alert("Помилка генерації PDF (див. консоль).");
