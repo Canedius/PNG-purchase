@@ -521,17 +521,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const createdAt = new Date().toLocaleDateString("uk-UA");
     const ttnValue = batchId ? (supplier._ttnByBatch && supplier._ttnByBatch[batchId]) : null;
 
-    const logoData = await getLogoData();
     let headerBottom = 24;
-    if (logoData) {
-      try {
-        const logoFormat = logoData.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-        doc.addImage(logoData, logoFormat, 40, 24, 100, 32);
-        headerBottom = 24 + 32;
-      } catch (e) {
-        console.warn("Logo addImage failed, skip", e);
-      }
-    }
     // QR для бек-вебхука: статус "received" + id вибраних товарів
     const qrY = 32;
     let qrBottom = qrY;
