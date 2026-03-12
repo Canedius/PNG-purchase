@@ -118,8 +118,23 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getLogoData() {
-    // Використовуємо вбудований favicon як логотип у PDF, щоб уникнути CORS/tainted canvas
-    return Promise.resolve(fallbackLogo);
+    if (logoDataPromise) return logoDataPromise;
+    logoDataPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const cvs = document.createElement("canvas");
+          cvs.width = img.naturalWidth;
+          cvs.height = img.naturalHeight;
+          const ctx = cvs.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          resolve(cvs.toDataURL("image/png"));
+        } catch (e) { resolve(fallbackLogo); }
+      };
+      img.onerror = () => resolve(fallbackLogo);
+      img.src = "logo/PNG GROUP logo.avif";
+    });
+    return logoDataPromise;
   }
 
   let fontReady = false;
@@ -599,35 +614,59 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const placeholderEntry = { data: defaultPhoto, format: "PNG", ratio: 1 };
-    const getRatio = (dataUrl) => new Promise((resolve) => {
+    // Перевіряємо чи зображення валідне і конвертуємо в JPEG через canvas
+    // (jsPDF PNG-декодер може зависнути на битих файлах, JPEG — безпечніший)
+    const validateImage = (dataUrl) => new Promise((resolve) => {
       const img = new Image();
+      const timer = setTimeout(() => { img.src = ""; resolve(null); }, 2500);
       img.onload = () => {
-        const r = img.width && img.height ? img.width / img.height : 1;
-        resolve(r || 1);
+        clearTimeout(timer);
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          try {
+            const cvs = document.createElement("canvas");
+            cvs.width = img.naturalWidth;
+            cvs.height = img.naturalHeight;
+            const ctx = cvs.getContext("2d");
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, cvs.width, cvs.height);
+            ctx.drawImage(img, 0, 0);
+            const jpegData = cvs.toDataURL("image/jpeg", 0.85);
+            resolve({ data: jpegData, format: "JPEG", ratio: img.naturalWidth / img.naturalHeight });
+          } catch (e) {
+            resolve(null); // canvas tainted або інша помилка
+          }
+        } else {
+          resolve(null); // битий — 0×0
+        }
       };
-      img.onerror = () => resolve(1);
+      img.onerror = () => { clearTimeout(timer); resolve(null); };
       img.src = dataUrl;
     });
     const toDataUrl = async (url) => {
       if (!url) return placeholderEntry;
       if (url.startsWith("data:image/")) {
-        const fmt = url.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-        return { data: url, format: fmt, ratio: 1 };
+        const v = await validateImage(url);
+        if (!v) return placeholderEntry;
+        return { data: v.data, format: v.format, ratio: v.ratio };
       }
       try {
-        const resp = await fetch(url);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort("timeout"), 4000);
+        const resp = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
         const contentType = resp.headers.get("content-type") || "";
         if (!resp.ok || !contentType.startsWith("image/")) throw new Error("not image");
         const blob = await resp.blob();
+        if (blob.size < 50) throw new Error("too small");
         const dataUrl = await new Promise((resolve, reject) => {
           const fr = new FileReader();
           fr.onload = () => resolve(fr.result);
           fr.onerror = reject;
           fr.readAsDataURL(blob);
         });
-        const fmt = dataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-        const ratio = await getRatio(dataUrl);
-        return { data: dataUrl, format: fmt, ratio };
+        const v = await validateImage(dataUrl);
+        if (!v) return placeholderEntry; // битий файл — підставляємо placeholder
+        return { data: v.data, format: v.format, ratio: v.ratio };
       } catch (e) {
         return placeholderEntry;
       }
@@ -720,9 +759,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const x = data.cell.x + (data.cell.width - w) / 2;
             const y = data.cell.y + (data.cell.height - h) / 2;
             try {
-              doc.addImage(imgEntry.data, imgEntry.format || "PNG", x, y, w, h);
+              // Використовуємо JPEG формат — jsPDF краще обробляє і не зависає на битих PNG
+              const safeFormat = imgEntry.format === "JPEG" ? "JPEG" : "PNG";
+              doc.addImage(imgEntry.data, safeFormat, x, y, w, h);
             } catch (e) {
-              console.warn("Photo addImage failed", e);
+              console.warn("Photo addImage failed, using placeholder", e);
+              try { doc.addImage(defaultPhoto, "PNG", x, y, w, h); } catch (_) {}
             }
             return;
           }
