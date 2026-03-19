@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateUrl = "https://primary-production-eeb3.up.railway.app/webhook/26cb3bb4-e19f-4037-8291-6525da83be45";
   const receiveWebhook = "https://primary-production-eeb3.up.railway.app/webhook/aaf5a6e4-f47b-45ce-8f6b-e8e3600a2ab5"; // вебхук для статусу 'received'
   const createUrl = "https://primary-production-eeb3.up.railway.app/webhook/aad0017a-9bac-4968-ad7a-fdb13e03a33e"; // створення одноразового товару
+  const deleteUrl = "https://primary-production-eeb3.up.railway.app/webhook/9befdb41-a9e6-48bb-9e9d-b662a45719b5"; // видалення товару (Webhook1)
   const orderLinkBase = "https://pngstudio.keycrm.app/app/orders/view/";
   const imgbbKey = "94bdaee3905112e98422049edbc5347f"; // ключ imgbb для аплоуду фото
 
@@ -303,6 +304,7 @@ document.addEventListener("DOMContentLoaded", () => {
                       <input type="checkbox" class="toggle-all styled-check" data-index="${idx}" data-batch="${batchId}" ${batchItems.length>0 && batchItems.every(i => i._selected) ? "checked" : ""}>
                     </th>
                     ${columns.map(col => `<th class="px-3 py-2 text-left text-sm font-semibold text-slate-700">${col}</th>`).join("")}
+                    <th class="w-10 px-2 py-2"></th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -311,7 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const color = "#3b82f6";
                     const bg = "#f5f7ff";
                     return `
-                    <tr><td colspan="${1 + columns.length}" class="bg-transparent h-1" style="background:${bg}; ${groupIdx === 0 ? "border-top: 0;" : `border-top: 3px solid ${color};`}"></td></tr>
+                    <tr><td colspan="${2 + columns.length}" class="bg-transparent h-1" style="background:${bg}; ${groupIdx === 0 ? "border-top: 0;" : `border-top: 3px solid ${color};`}"></td></tr>
                     ${rows.map(item => {
                       const itemIdx = supplier.items.indexOf(item);
                       return `
@@ -367,6 +369,17 @@ document.addEventListener("DOMContentLoaded", () => {
                                </span>`
                             : `<span class="text-emerald-600">Новий</span>`}
                         </td>
+                        <td class="px-2 py-2 text-center" style="background:${bg}">
+                          <button class="delete-item-btn text-slate-400 hover:text-rose-600 transition" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M3 6h18"/>
+                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                              <line x1="10" y1="11" x2="10" y2="17"/>
+                              <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                          </button>
+                        </td>
                       </tr>
                       `;
                     }).join("")}
@@ -388,6 +401,29 @@ document.addEventListener("DOMContentLoaded", () => {
         const index = Number(e.currentTarget.dataset.index);
         const batch = e.currentTarget.dataset.batch || null;
         generatePdf(suppliers[index], batch);
+      })
+    );
+
+    document.querySelectorAll(".delete-item-btn").forEach(btn =>
+      btn.addEventListener("click", async (e) => {
+        const orderId = e.currentTarget.dataset.orderId;
+        if (!confirm(`Видалити товар із замовлення ${orderId}?`)) return;
+        const row = e.currentTarget.closest("tr");
+        try {
+          row.style.opacity = "0.4";
+          const resp = await fetch(`${deleteUrl}?context[id]=${encodeURIComponent(orderId)}`);
+          if (resp.ok) {
+            row.style.transition = "opacity 0.3s";
+            row.style.opacity = "0";
+            setTimeout(() => row.remove(), 300);
+          } else {
+            row.style.opacity = "1";
+            alert("Помилка видалення: " + resp.status);
+          }
+        } catch (err) {
+          row.style.opacity = "1";
+          alert("Помилка: " + err.message);
+        }
       })
     );
 
