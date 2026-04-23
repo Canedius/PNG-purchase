@@ -21,29 +21,56 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
   <div class="max-w-6xl mx-auto px-4 py-8 space-y-6">
-    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <img id="pageLogo" src="logo/PNG GROUP logo.avif" alt="Логотип" class="h-10 w-auto object-contain rounded" />
-        <div>
-          <h1 class="text-2xl font-semibold text-slate-900">Таблиця закупівлі</h1>
+    <header class="rounded-2xl bg-white shadow-sm border border-slate-200 px-6 py-4">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-4 min-w-0">
+          <img id="pageLogo" src="logo/PNG GROUP logo.avif" alt="PNG GROUP" class="h-12 w-auto object-contain" />
+          <div class="min-w-0">
+            <h1 class="text-xl font-semibold text-slate-900 leading-tight truncate">Таблиця закупівлі</h1>
+            <p class="text-xs uppercase tracking-wider text-slate-400">PNG GROUP</p>
+          </div>
         </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button id="addSupplierBtn"
-          class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white font-medium shadow hover:bg-indigo-700 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          Додати постачальника + товар
-        </button>
-        <button id="refreshBtn"
-          class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-white font-medium shadow hover:bg-amber-600 transition">
-          Оновити дані з KeyCRM
-        </button>
+        <div class="flex items-center gap-2">
+          <button id="addSupplierBtn"
+            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-indigo-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            Додати постачальника + товар
+          </button>
+          <button id="refreshBtn"
+            class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-amber-600 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>
+            </svg>
+            Оновити дані з KeyCRM
+          </button>
+        </div>
       </div>
     </header>
 
-    <div class="inline-flex rounded-full border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <button id="brandPngDruk" data-brand="png_druk"
+        class="brand-btn group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 text-left shadow-sm hover:shadow transition">
+        <img src="https://pngdruk.com.ua/wp-content/uploads/2025/09/png-druk-logo-black-300x231.png?w=178&h=180&fit=crop"
+             alt="PNG druk" class="h-12 w-12 object-contain" />
+        <div class="leading-tight">
+          <div class="text-lg font-bold text-slate-800">PNG druk</div>
+          <div class="text-xs text-slate-400">Закупівлі</div>
+        </div>
+      </button>
+      <button id="brandPngStudio" data-brand="png_studio"
+        class="brand-btn group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 text-left shadow-sm hover:shadow transition">
+        <img src="https://pngstudio.api.keycrm.app/file-storage/thumbnails/pngstudio/uploads/2022-09-10/IIcJ5eWTlxNTDWZCPJzZSRiWWRLCotRu.png?w=178&h=180&fit=crop"
+             alt="PNG Studio" class="h-[68px] w-[68px] object-contain" />
+        <div class="leading-tight">
+          <div class="text-lg font-bold text-slate-800">PNG Studio</div>
+          <div class="text-xs text-slate-400">Закупівлі</div>
+        </div>
+      </button>
+    </div>
+
+    <div id="tabsBar" class="inline-flex rounded-full border border-slate-200 bg-white shadow-sm overflow-hidden">
       <button id="tabAll" class="tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold">
         <svg id="flameIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400">
           <path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"></path>

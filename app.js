@@ -27,6 +27,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const pageLogo = document.getElementById("pageLogo");
   const tabAll = document.getElementById("tabAll");
   const tabOrdered = document.getElementById("tabOrdered");
+  const tabsBar = document.getElementById("tabsBar");
+  const brandPngDruk = document.getElementById("brandPngDruk");
+  const brandPngStudio = document.getElementById("brandPngStudio");
   // Modal одноразового товару
   const oneOffModal = document.getElementById("oneOffModal");
   const mOrder = document.getElementById("mOrder");
@@ -45,6 +48,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const { jsPDF } = window.jspdf;
   let logoDataPromise = null;
   let currentView = "new"; // new | ordered
+  let currentBrand = "png_druk"; // png_druk | png_studio
+  const BRAND_TAGS = {
+    png_druk: new Set(["PNG druk Львів", "PNG druk Київ", "PNG druk"]),
+    png_studio: new Set(["PNG studio"]),
+  };
   // Мінімальний валідний PNG 1x1 (прозорий), щоб уникнути помилок декодування
   const fallbackLogo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6XbRuoAAAAASUVORK5CYII=";
   const markIcons = [
@@ -220,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="text-lg font-semibold">${supplier.name}</div>
               </div>
               <div class="inline-flex items-center gap-2">
-                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white"
+                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white ${currentBrand === "png_druk" ? "" : "hidden"}"
                         data-supplier="${idx}" data-batch="" data-date="${visibleItems[0]?.dateOrder || ""}" title="Додати одноразовий товар">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 5v14M5 12h14"/>
@@ -274,7 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
                        data-supplier="${idx}" data-batch="${batchId}" placeholder="ТТН" value="${supplier._ttnByBatch[batchId] || ""}">
               </div>
               <div class="flex items-center gap-2">
-                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white"
+                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white ${currentBrand === "png_druk" ? "" : "hidden"}"
                         data-supplier="${idx}" data-batch="${batchId}" data-date="${firstItem?.dateOrder || fallbackDate || ""}" title="Додати одноразовий товар">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 5v14M5 12h14"/>
@@ -897,7 +905,13 @@ document.addEventListener("DOMContentLoaded", () => {
         rows = [];
       }
       if (Array.isArray(rows)) {
-        rows = rows.filter(r => r && (r.OrderID != null && r.OrderID !== "") && (r.SKU || r.ProductName));
+        const allowed = BRAND_TAGS[currentBrand] || new Set();
+        rows = rows.filter(r =>
+          r &&
+          (r.OrderID != null && r.OrderID !== "") &&
+          (r.SKU || r.ProductName) &&
+          allowed.has(r.company_tag)
+        );
       }
       if (!Array.isArray(rows) || rows.length === 0) {
         const msg = currentView === "ordered"
@@ -906,7 +920,7 @@ document.addEventListener("DOMContentLoaded", () => {
         container.innerHTML = `<div class="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
           ${msg}
         </div>`;
-        refreshOneOffSuppliers();
+        if (typeof refreshOneOffSuppliers === "function") refreshOneOffSuppliers();
         return;
       }
 
@@ -1010,6 +1024,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   tabAll.addEventListener("click", () => setTabState("new"));
   tabOrdered.addEventListener("click", () => setTabState("ordered"));
+
+  function setBrand(brand) {
+    if (!BRAND_TAGS[brand]) return;
+    currentBrand = brand;
+    const activeCls = ["ring-2", "ring-indigo-500", "shadow"];
+    [brandPngDruk, brandPngStudio].forEach(btn => {
+      if (!btn) return;
+      const isActive = btn.dataset.brand === brand;
+      activeCls.forEach(c => btn.classList.toggle(c, isActive));
+    });
+    if (tabsBar) tabsBar.classList.toggle("hidden", brand !== "png_druk");
+    if (addSupplierBtn) addSupplierBtn.classList.toggle("hidden", brand !== "png_druk");
+    if (brand !== "png_druk") currentView = "new";
+    loadData();
+  }
+  brandPngDruk?.addEventListener("click", () => setBrand("png_druk"));
+  brandPngStudio?.addEventListener("click", () => setBrand("png_studio"));
+  setBrand("png_druk");
 
   // === Модалка одноразового товару ===
   function openOneOffModal(supplierIndex, batchId, dateDefault) {
