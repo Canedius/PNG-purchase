@@ -896,6 +896,9 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         rows = [];
       }
+      if (Array.isArray(rows)) {
+        rows = rows.filter(r => r && (r.OrderID != null && r.OrderID !== "") && (r.SKU || r.ProductName));
+      }
       if (!Array.isArray(rows) || rows.length === 0) {
         const msg = currentView === "ordered"
           ? "Замовлених товарів поки немає."
