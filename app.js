@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const receiveWebhook = "https://primary-production-eeb3.up.railway.app/webhook/aaf5a6e4-f47b-45ce-8f6b-e8e3600a2ab5"; // вебхук для статусу 'received'
   const createUrl = "https://primary-production-eeb3.up.railway.app/webhook/aad0017a-9bac-4968-ad7a-fdb13e03a33e"; // створення одноразового товару
   const deleteUrl = "https://primary-production-eeb3.up.railway.app/webhook/9befdb41-a9e6-48bb-9e9d-b662a45719b5"; // видалення товару (Webhook1)
+  const stockListUrl = "https://primary-production-eeb3.up.railway.app/webhook/b345a2cb-c38e-473f-a2cb-984179c2a16d"; // GET список залишків
+  const stockSaveUrl = "https://primary-production-eeb3.up.railway.app/webhook/083515fd-b0b5-4176-b3e8-47f41f9d0e14"; // POST upsert/delete залишку
   const orderLinkBase = "https://pngstudio.keycrm.app/app/orders/view/";
   const imgbbKey = "94bdaee3905112e98422049edbc5347f"; // ключ imgbb для аплоуду фото
 
@@ -90,6 +92,123 @@ document.addEventListener("DOMContentLoaded", () => {
     try { localStorage.setItem(oneOffBatchKey, JSON.stringify(map)); } catch (e) {}
   };
   let oneOffBatches = loadOneOffBatches();
+
+  // === Залишки на складі (спільна база в n8n) ===
+  // Map: нормалізований артикул -> { sku, name, quantity }
+  let stockMap = new Map();
+  const normalizeSku = (s) => String(s ?? "").trim().toUpperCase();
+  const getStock = (sku) => {
+    const key = normalizeSku(sku);
+    if (!key) return null;
+    return stockMap.get(key) || null;
+  };
+  async function loadStock() {
+    try {
+      const resp = await fetch(stockListUrl, { cache: "no-store" });
+      const text = await resp.text();
+      let rows = [];
+      if (text && text.trim().length) {
+        try { const parsed = JSON.parse(text); if (Array.isArray(parsed)) rows = parsed; } catch (e) {}
+      }
+      const next = new Map();
+      rows.forEach(r => {
+        if (!r) return;
+        const key = normalizeSku(r.sku);
+        if (!key) return;
+        next.set(key, { sku: String(r.sku).trim(), name: r.name || "", quantity: Number(r.quantity) || 0 });
+      });
+      stockMap = next;
+    } catch (e) {
+      console.warn("Не вдалося завантажити залишки", e);
+    }
+  }
+
+  // Записати нову кількість залишку (0 — лишаємо рядок, бейдж ховається)
+  async function setStockQuantity(stock, newQty) {
+    const qty = Math.max(0, Number(newQty) || 0);
+    const payload = { sku: stock.sku, name: stock.name || "", quantity: qty };
+    const resp = await fetch(stockSaveUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    stockMap.set(normalizeSku(stock.sku), { sku: stock.sku, name: stock.name || "", quantity: qty });
+  }
+
+  // Питає, чи списати товар зі складу. Повертає:
+  //  { proceed:true, usage:[{stock, use}] } — продовжити (usage може бути порожнім)
+  //  { proceed:false } — скасувати перенесення
+  function askStockUsage(items) {
+    // Агрегуємо обрані товари за артикулом, лишаємо лише ті, що є на складі (к-сть > 0)
+    const bySku = new Map();
+    items.forEach(it => {
+      const st = getStock(it.sku);
+      if (!st || st.quantity <= 0) return;
+      const key = normalizeSku(it.sku);
+      const entry = bySku.get(key) || { stock: st, ordered: 0 };
+      entry.ordered += Number(it.quantity) || 0;
+      bySku.set(key, entry);
+    });
+    const rows = [...bySku.values()];
+    if (rows.length === 0) return Promise.resolve({ proceed: true, usage: [] });
+
+    const modal = document.getElementById("stockUseModal");
+    const listEl = document.getElementById("stockUseList");
+    const msgEl = document.getElementById("stockUseMsg");
+    const confirmBtn = document.getElementById("stockUseConfirm");
+    const skipBtn = document.getElementById("stockUseSkip");
+    const closeBtn = document.getElementById("stockUseClose");
+
+    msgEl.textContent = "";
+    listEl.innerHTML = rows.map((r, i) => {
+      const def = Math.min(r.ordered, r.stock.quantity);
+      return `
+        <div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+          <div class="min-w-0 grow">
+            <div class="text-sm font-medium text-slate-800 truncate">${r.stock.name || r.stock.sku}</div>
+            <div class="text-xs text-slate-500">Артикул: <span class="font-mono">${r.stock.sku}</span> · на складі: <b>${r.stock.quantity} шт</b> · замовляється: ${r.ordered} шт</div>
+          </div>
+          <label class="text-xs text-slate-500 shrink-0">
+            списати
+            <input type="number" class="stock-use-input mt-1 w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm text-center focus:ring-2 focus:ring-emerald-500"
+                   data-idx="${i}" min="0" max="${r.stock.quantity}" value="${def}">
+          </label>
+        </div>`;
+    }).join("");
+
+    modal.classList.remove("hidden");
+
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        modal.classList.add("hidden");
+        confirmBtn.removeEventListener("click", onConfirm);
+        skipBtn.removeEventListener("click", onSkip);
+        closeBtn.removeEventListener("click", onCancel);
+        modal.removeEventListener("click", onBackdrop);
+      };
+      const onConfirm = () => {
+        const inputs = listEl.querySelectorAll(".stock-use-input");
+        const usage = [];
+        for (const inp of inputs) {
+          const r = rows[Number(inp.dataset.idx)];
+          let use = Number(inp.value);
+          if (!Number.isFinite(use) || use < 0) use = 0;
+          if (use > r.stock.quantity) { msgEl.textContent = `Не можна списати більше, ніж є на складі (${r.stock.sku}: ${r.stock.quantity} шт).`; return; }
+          if (use > 0) usage.push({ stock: r.stock, use });
+        }
+        cleanup();
+        resolve({ proceed: true, usage });
+      };
+      const onSkip = () => { cleanup(); resolve({ proceed: true, usage: [] }); };
+      const onCancel = () => { cleanup(); resolve({ proceed: false }); };
+      const onBackdrop = (e) => { if (e.target === modal) onCancel(); };
+      confirmBtn.addEventListener("click", onConfirm);
+      skipBtn.addEventListener("click", onSkip);
+      closeBtn.addEventListener("click", onCancel);
+      modal.addEventListener("click", onBackdrop);
+    });
+  }
 
   const renderMarkIcon = (idx) => markIcons[idx] || markIcons[0];
 
@@ -344,8 +463,17 @@ document.addEventListener("DOMContentLoaded", () => {
                           <img src="${item.photo || defaultPhoto}" data-full="${item.photo || defaultPhoto}" alt="Фото" class="thumb-img rounded border border-slate-200 bg-white">
                         </td>
                         <td class="px-3 py-2 text-sm" style="background:${bg}">
-                          <div class="flex items-center gap-2 group">
+                          <div class="flex items-center gap-2 group flex-wrap">
                             <span>${item.productName}</span>
+                            ${(() => {
+                              const st = getStock(item.sku);
+                              return (st && st.quantity > 0)
+                                ? `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full whitespace-nowrap" title="Артикул є на складі">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    Є на складі: ${st.quantity} шт
+                                   </span>`
+                                : "";
+                            })()}
                             <button class="copy-btn text-indigo-600 hover:text-indigo-800 transition opacity-0 group-hover:opacity-100" data-copy="${item.productName}" title="Копіювати назву">
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4 fill-current">
                                 <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Z M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h12v14Z"/>
@@ -448,19 +576,30 @@ document.addEventListener("DOMContentLoaded", () => {
           targetSupplier._openBatch = { id: batchIdNew, started: now };
         }
         const batchId = targetSupplier._openBatch.id;
-        const changedItems = [];
-        targetSupplier.items.forEach(item => {
-          if (item._selected === true && item.status !== "ordered") {
-            item.status = "ordered";
-            item.batchId = batchId;
-            changedItems.push(item);
-            any = true;
-          }
-        });
-        if (!any) {
+        // Спершу збираємо обрані товари (статус ще не міняємо — раптом скасують у вікні складу)
+        const changedItems = targetSupplier.items.filter(item => item._selected === true && item.status !== "ordered");
+        if (changedItems.length === 0) {
           alert("Спочатку відміть товари для зміни статусу.");
           return;
         }
+        // Питаємо, чи списати товар зі складу (лише для PNG druk, де є залишки)
+        if (currentBrand === "png_druk") {
+          const decision = await askStockUsage(changedItems);
+          if (!decision.proceed) return; // скасовано — нічого не змінюємо
+          if (decision.usage && decision.usage.length) {
+            try {
+              for (const u of decision.usage) {
+                await setStockQuantity(u.stock, u.stock.quantity - u.use);
+              }
+            } catch (err) {
+              alert(`Не вдалося списати зі складу: ${err.message}. Перенесення скасовано.`);
+              return renderSuppliers();
+            }
+          }
+        }
+        // Тепер фіксуємо статус і батч
+        changedItems.forEach(item => { item.status = "ordered"; item.batchId = batchId; });
+        any = true;
         try {
           await updateStatus(changedItems, "ordered");
         } catch (err) {
@@ -891,6 +1030,8 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>`;
     try {
       const statusParam = currentView === "ordered" ? "ordered" : "to_buy";
+      // Залишки тягнемо паралельно (лише для PNG druk), щоб бейджі були готові до рендеру
+      const stockPromise = currentBrand === "png_druk" ? loadStock() : Promise.resolve(stockMap.clear());
       const resp = await fetch(`${dataUrl}?status=${encodeURIComponent(statusParam)}`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const rawText = await resp.text();
@@ -968,6 +1109,7 @@ document.addEventListener("DOMContentLoaded", () => {
           s._printedBatches = Array.isArray(saved.batches) ? [...saved.batches] : [];
         }
       });
+      await stockPromise;
       renderSuppliers();
     } catch (e) {
       console.error("Fetch error", e);
@@ -1036,6 +1178,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (tabsBar) tabsBar.classList.toggle("hidden", brand !== "png_druk");
     if (addSupplierBtn) addSupplierBtn.classList.toggle("hidden", brand !== "png_druk");
+    const stockBtnEl = document.getElementById("stockBtn");
+    if (stockBtnEl) stockBtnEl.classList.toggle("hidden", brand !== "png_druk");
     if (brand !== "png_druk") currentView = "new";
     loadData();
   }
@@ -1253,6 +1397,158 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.innerText = prev;
     }
   });
+
+  // === Модалка залишків на складі ===
+  const stockBtn = document.getElementById("stockBtn");
+  const stockModal = document.getElementById("stockModal");
+  const stockClose = document.getElementById("stockClose");
+  const stSku = document.getElementById("stSku");
+  const stName = document.getElementById("stName");
+  const stQty = document.getElementById("stQty");
+  const stAdd = document.getElementById("stAdd");
+  const stMsg = document.getElementById("stMsg");
+  const stList = document.getElementById("stList");
+
+  function renderStockList() {
+    if (!stList) return;
+    const items = [...stockMap.values()].sort((a, b) => a.sku.localeCompare(b.sku, "uk"));
+    if (items.length === 0) {
+      stList.innerHTML = `<div class="text-sm text-slate-400 text-center py-6">Поки що немає жодного артикулу на складі.</div>`;
+      return;
+    }
+    stList.innerHTML = `
+      <table class="min-w-full text-sm">
+        <thead class="text-xs text-slate-500">
+          <tr class="border-b border-slate-200">
+            <th class="text-left font-medium py-2 px-2">Артикул</th>
+            <th class="text-left font-medium py-2 px-2">Назва</th>
+            <th class="text-center font-medium py-2 px-2 w-20">К-сть</th>
+            <th class="w-10"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${items.map(it => `
+            <tr>
+              <td class="py-2 px-2 font-medium text-slate-800">${it.sku}</td>
+              <td class="py-2 px-2 text-slate-600">${it.name || "<span class='text-slate-300'>—</span>"}</td>
+              <td class="py-2 px-2 text-center">
+                <span class="inline-flex items-center gap-1">
+                  <input type="number" min="0" value="${it.quantity}" data-sku="${it.sku}"
+                    class="st-qty w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm text-center text-emerald-700 font-semibold focus:ring-2 focus:ring-emerald-500">
+                  <span class="text-xs text-slate-400">шт</span>
+                </span>
+              </td>
+              <td class="py-2 px-2 text-center">
+                <button class="st-del text-slate-400 hover:text-rose-600 transition" data-sku="${it.sku}" title="Видалити зі складу">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
+    stList.querySelectorAll(".st-del").forEach(btn =>
+      btn.addEventListener("click", () => deleteStock(btn.dataset.sku, btn))
+    );
+    stList.querySelectorAll(".st-qty").forEach(inp => {
+      const commit = async () => {
+        const sku = inp.dataset.sku;
+        const cur = getStock(sku);
+        if (!cur) return;
+        let qty = Number(inp.value);
+        if (!Number.isFinite(qty) || qty < 0) qty = 0;
+        if (qty === cur.quantity) return; // без змін
+        inp.disabled = true;
+        try {
+          await setStockQuantity(cur, qty);
+          inp.classList.add("ring-2", "ring-emerald-400");
+          setTimeout(() => inp.classList.remove("ring-2", "ring-emerald-400"), 700);
+          renderSuppliers(); // оновити бейджі в таблиці
+        } catch (e) {
+          inp.value = cur.quantity; // відкат
+          if (stMsg) stMsg.textContent = "Не вдалося зберегти кількість: " + e.message;
+        } finally {
+          inp.disabled = false;
+        }
+      };
+      inp.addEventListener("change", commit);
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
+    });
+  }
+
+  async function openStockModal() {
+    if (!stockModal) return;
+    stMsg.textContent = "";
+    stSku.value = ""; stName.value = ""; stQty.value = 1;
+    stockModal.classList.remove("hidden");
+    stList.innerHTML = `<div class="text-sm text-slate-400 text-center py-6">Завантаження…</div>`;
+    await loadStock();
+    renderStockList();
+  }
+  function closeStockModal() {
+    if (stockModal) stockModal.classList.add("hidden");
+  }
+
+  async function saveStock() {
+    stMsg.textContent = "";
+    const sku = (stSku.value || "").trim();
+    if (!sku) { stMsg.textContent = "Вкажіть артикул."; return; }
+    const qty = Number(stQty.value);
+    const payload = {
+      sku,
+      name: (stName.value || "").trim(),
+      quantity: Number.isFinite(qty) && qty >= 0 ? qty : 0
+    };
+    stAdd.disabled = true;
+    const prevTxt = stAdd.textContent;
+    stAdd.textContent = "Зберігаю…";
+    try {
+      const resp = await fetch(stockSaveUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // локально оновлюємо одразу
+      stockMap.set(normalizeSku(sku), { sku, name: payload.name, quantity: payload.quantity });
+      stSku.value = ""; stName.value = ""; stQty.value = 1;
+      renderStockList();
+      renderSuppliers(); // оновити бейджі в таблиці
+    } catch (e) {
+      stMsg.textContent = "Не вдалося зберегти: " + e.message;
+    } finally {
+      stAdd.disabled = false;
+      stAdd.textContent = prevTxt;
+    }
+  }
+
+  async function deleteStock(sku, btn) {
+    if (!confirm(`Прибрати артикул ${sku} зі складу?`)) return;
+    if (btn) btn.disabled = true;
+    try {
+      const resp = await fetch(stockSaveUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sku, _delete: true })
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      stockMap.delete(normalizeSku(sku));
+      renderStockList();
+      renderSuppliers();
+    } catch (e) {
+      if (btn) btn.disabled = false;
+      alert("Не вдалося видалити: " + e.message);
+    }
+  }
+
+  if (stockBtn) stockBtn.addEventListener("click", openStockModal);
+  if (stockClose) stockClose.addEventListener("click", closeStockModal);
+  if (stAdd) stAdd.addEventListener("click", saveStock);
+  if (stSku) stSku.addEventListener("keydown", (e) => { if (e.key === "Enter") saveStock(); });
+  if (stQty) stQty.addEventListener("keydown", (e) => { if (e.key === "Enter") saveStock(); });
+  if (stockModal) stockModal.addEventListener("click", (e) => { if (e.target === stockModal) closeStockModal(); });
 
   // Завантажуємо дані й стартуємо (запам'ятовуємо останню вкладку)
   let initialView = "new";

@@ -38,6 +38,13 @@
             </svg>
             Додати постачальника + товар
           </button>
+          <button id="stockBtn"
+            class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-emerald-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>
+            </svg>
+            Залишки на складі
+          </button>
           <button id="refreshBtn"
             class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-amber-600 transition">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -138,6 +145,61 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260423b" defer></script>
+  <!-- Modal залишків на складі -->
+  <div id="stockModal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] flex flex-col">
+      <button id="stockClose" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600">&times;</button>
+      <h3 class="text-lg font-semibold mb-1 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>
+        </svg>
+        Залишки на складі (PNG druk)
+      </h3>
+      <p class="text-xs text-slate-500 mb-4">Артикули, що є на складі. Якщо такий артикул є у закупівлі — біля товару зʼявиться позначка «Є на складі».</p>
+
+      <div class="grid gap-2 md:grid-cols-[1fr_1fr_90px_auto] items-end border-b border-slate-200 pb-4 mb-4">
+        <label class="text-sm space-y-1">
+          <span class="text-xs text-slate-500">Артикул*</span>
+          <input id="stSku" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" placeholder="напр. ABC-123" />
+        </label>
+        <label class="text-sm space-y-1">
+          <span class="text-xs text-slate-500">Назва (необовʼязково)</span>
+          <input id="stName" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" placeholder="напр. Футболка біла" />
+        </label>
+        <label class="text-sm space-y-1">
+          <span class="text-xs text-slate-500">К-сть</span>
+          <input id="stQty" type="number" min="0" value="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+        </label>
+        <button id="stAdd" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow whitespace-nowrap">Зберегти</button>
+      </div>
+
+      <div id="stMsg" class="text-xs text-rose-600 mb-2"></div>
+      <div id="stList" class="overflow-y-auto -mx-1 px-1 grow">
+        <div class="text-sm text-slate-400 text-center py-6">Завантаження…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: списання зі складу при перенесенні в Замовлено -->
+  <div id="stockUseModal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl p-6 relative max-h-[90vh] flex flex-col">
+      <button id="stockUseClose" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600">&times;</button>
+      <h3 class="text-lg font-semibold mb-1 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>
+        </svg>
+        Використати товар зі складу?
+      </h3>
+      <p class="text-xs text-slate-500 mb-4">Деякі з цих товарів є на складі. Вкажіть, скільки списати — ця кількість відніметься від залишку.</p>
+      <div id="stockUseList" class="overflow-y-auto -mx-1 px-1 grow space-y-2"></div>
+      <div id="stockUseMsg" class="text-xs text-rose-600 mt-2"></div>
+      <div class="flex items-center justify-end gap-3 mt-4">
+        <button id="stockUseSkip" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">Не списувати</button>
+        <button id="stockUseConfirm" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow">Списати зі складу</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260615c" defer></script>
 </body>
 </html>
