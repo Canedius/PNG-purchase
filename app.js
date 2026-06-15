@@ -303,6 +303,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Розподіл залишків: лічильник «скільки ще доступно» по кожному артикулу.
+    // Зменшується по рядках у порядку показу, щоб сумарно бейджі не перевищували склад.
+    const stockRemaining = new Map();
+    stockMap.forEach((v, k) => stockRemaining.set(k, v.quantity));
+
     suppliers.forEach((supplier, idx) => {
       const visibleItems = supplier.items.filter(item => currentView === "ordered" ? item.status === "ordered" : item.status !== "ordered");
       if (currentView === "ordered") {
@@ -466,13 +471,18 @@ document.addEventListener("DOMContentLoaded", () => {
                           <div class="flex items-center gap-2 group flex-wrap">
                             <span>${item.productName}</span>
                             ${(() => {
-                              const st = getStock(item.sku);
-                              return (st && st.quantity > 0)
-                                ? `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full whitespace-nowrap" title="Артикул є на складі">
+                              const key = normalizeSku(item.sku);
+                              const rem = stockRemaining.get(key);
+                              if (rem === undefined || rem <= 0) return "";
+                              let need = Number(item.quantity);
+                              if (!Number.isFinite(need) || need <= 0) need = 1;
+                              const alloc = Math.min(need, rem);
+                              if (alloc <= 0) return "";
+                              stockRemaining.set(key, rem - alloc); // резервуємо під цей рядок
+                              return `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full whitespace-nowrap" title="Артикул є на складі">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                    Є на складі: ${st.quantity} шт
-                                   </span>`
-                                : "";
+                                    Є на складі: ${alloc} шт
+                                   </span>`;
                             })()}
                             <button class="copy-btn text-indigo-600 hover:text-indigo-800 transition opacity-0 group-hover:opacity-100" data-copy="${item.productName}" title="Копіювати назву">
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4 fill-current">
