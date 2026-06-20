@@ -1177,9 +1177,10 @@ document.addEventListener("DOMContentLoaded", () => {
   tabAll.addEventListener("click", () => setTabState("new"));
   tabOrdered.addEventListener("click", () => setTabState("ordered"));
 
-  function setBrand(brand) {
+  function setBrand(brand, { load = true } = {}) {
     if (!BRAND_TAGS[brand]) return;
     currentBrand = brand;
+    try { localStorage.setItem("brand", brand); } catch (e) {}
     const activeCls = ["ring-2", "ring-indigo-500", "shadow"];
     [brandPngDruk, brandPngStudio].forEach(btn => {
       if (!btn) return;
@@ -1192,11 +1193,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (addSupplierBtn) addSupplierBtn.classList.toggle("hidden", brand !== "png_druk");
     const stockBtnEl = document.getElementById("stockBtn");
     if (stockBtnEl) stockBtnEl.classList.toggle("hidden", brand !== "png_druk");
-    loadData();
+    if (load) loadData();
   }
   brandPngDruk?.addEventListener("click", () => setBrand("png_druk"));
   brandPngStudio?.addEventListener("click", () => setBrand("png_studio"));
-  setBrand("png_druk");
 
   // === Модалка одноразового товару ===
   function openOneOffModal(supplierIndex, batchId, dateDefault) {
@@ -1561,11 +1561,17 @@ document.addEventListener("DOMContentLoaded", () => {
   if (stQty) stQty.addEventListener("keydown", (e) => { if (e.key === "Enter") saveStock(); });
   if (stockModal) stockModal.addEventListener("click", (e) => { if (e.target === stockModal) closeStockModal(); });
 
-  // Завантажуємо дані й стартуємо (запам'ятовуємо останню вкладку)
+  // Завантажуємо дані й стартуємо (запам'ятовуємо останній бренд і вкладку)
+  let initialBrand = "png_druk";
+  try {
+    const savedBrand = localStorage.getItem("brand");
+    if (savedBrand === "png_druk" || savedBrand === "png_studio") initialBrand = savedBrand;
+  } catch (e) {}
   let initialView = "new";
   try {
     const saved = localStorage.getItem("tabView");
     if (saved === "ordered" || saved === "new") initialView = saved;
   } catch (e) {}
-  setTabState(initialView);
+  setBrand(initialBrand, { load: false }); // виставляємо бренд без зайвого завантаження
+  setTabState(initialView);                // встановлює вкладку і вантажить дані один раз
 });
