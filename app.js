@@ -1186,11 +1186,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const isActive = btn.dataset.brand === brand;
       activeCls.forEach(c => btn.classList.toggle(c, isActive));
     });
-    if (tabsBar) tabsBar.classList.toggle("hidden", brand !== "png_druk");
+    // Вкладки Поточні/Замовлено працюють для обох брендів (PNG druk і PNG studio)
+    if (tabsBar) tabsBar.classList.remove("hidden");
+    // Склад і одноразові товари — лише для PNG druk
     if (addSupplierBtn) addSupplierBtn.classList.toggle("hidden", brand !== "png_druk");
     const stockBtnEl = document.getElementById("stockBtn");
     if (stockBtnEl) stockBtnEl.classList.toggle("hidden", brand !== "png_druk");
-    if (brand !== "png_druk") currentView = "new";
     loadData();
   }
   brandPngDruk?.addEventListener("click", () => setBrand("png_druk"));
