@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateUrl = "https://primary-production-eeb3.up.railway.app/webhook/26cb3bb4-e19f-4037-8291-6525da83be45";
   const receiveWebhook = "https://primary-production-eeb3.up.railway.app/webhook/aaf5a6e4-f47b-45ce-8f6b-e8e3600a2ab5"; // вебхук для статусу 'received'
   const createUrl = "https://primary-production-eeb3.up.railway.app/webhook/aad0017a-9bac-4968-ad7a-fdb13e03a33e"; // створення одноразового товару
-  const deleteUrl = "https://primary-production-eeb3.up.railway.app/webhook/9befdb41-a9e6-48bb-9e9d-b662a45719b5"; // видалення товару (Webhook1)
+  const deleteUrl = "https://primary-production-eeb3.up.railway.app/webhook/9befdb41-a9e6-48bb-9e9d-b662a45719b5"; // видалення ОДНОГО рядка по ?id=<row.id> (Webhook1 -> Delete row(s))
   const stockListUrl = "https://primary-production-eeb3.up.railway.app/webhook/b345a2cb-c38e-473f-a2cb-984179c2a16d"; // GET список залишків
   const stockSaveUrl = "https://primary-production-eeb3.up.railway.app/webhook/083515fd-b0b5-4176-b3e8-47f41f9d0e14"; // POST upsert/delete залишку
   const orderLinkBase = "https://pngstudio.keycrm.app/app/orders/view/";
@@ -516,7 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             : `<span class="text-emerald-600">Новий</span>`}
                         </td>
                         <td class="px-2 py-2 text-center" style="background:${bg}">
-                          <button class="delete-item-btn text-slate-400 hover:text-rose-600 transition" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
+                          <button class="delete-item-btn text-slate-400 hover:text-rose-600 transition" data-row-id="${item.id ?? ''}" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                               <path d="M3 6h18"/>
                               <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -553,11 +553,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".delete-item-btn").forEach(btn =>
       btn.addEventListener("click", async (e) => {
         const orderId = e.currentTarget.dataset.orderId;
-        if (!confirm(`Видалити товар із замовлення ${orderId}?`)) return;
+        const rowId = e.currentTarget.dataset.rowId;
+        if (!rowId) { alert("Немає id рядка — онови сторінку і спробуй ще раз."); return; }
+        if (!confirm(`Видалити цей товар із замовлення ${orderId}?`)) return;
         const row = e.currentTarget.closest("tr");
         try {
           row.style.opacity = "0.4";
-          const resp = await fetch(`${deleteUrl}?context[id]=${encodeURIComponent(orderId)}`);
+          const resp = await fetch(`${deleteUrl}?id=${encodeURIComponent(rowId)}`);
           if (resp.ok) {
             row.style.transition = "opacity 0.3s";
             row.style.opacity = "0";
