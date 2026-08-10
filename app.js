@@ -290,16 +290,6 @@ document.addEventListener("DOMContentLoaded", () => {
     fontReady = false;
   }
 
-  // «1 товар / 2 товари / 5 товарів»
-  function pluralUa(n, one, few, many) {
-    const mod100 = Math.abs(n) % 100;
-    const mod10 = mod100 % 10;
-    if (mod100 >= 11 && mod100 <= 14) return many;
-    if (mod10 === 1) return one;
-    if (mod10 >= 2 && mod10 <= 4) return few;
-    return many;
-  }
-
   function renderSuppliers(highlightBatch = null) {
     container.innerHTML = "";
     if (highlightBatch?.animate) {
@@ -329,10 +319,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (visibleItems.length === 0) return;
       const selectedItemsView = visibleItems.filter(i => i._selected);
       const anySelected = selectedItemsView.length > 0;
-      const selectedQty = selectedItemsView.reduce((sum, i) => {
-        const q = Number(i.quantity);
-        return sum + (Number.isFinite(q) && q > 0 ? q : 1);
-      }, 0);
 
       const batches = {};
       const batchKey = (it) => currentView === "ordered" ? (it.batchId || "unsorted") : "current";
@@ -369,7 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6 9 17l-5-5"/>
                   </svg>
-                  Виділено ${selectedItemsView.length} ${pluralUa(selectedItemsView.length, "товар", "товари", "товарів")} з ${visibleItems.length} · ${selectedQty} шт
+                  Виділено ${selectedItemsView.length} шт
                 </span>
               </div>
               <div class="inline-flex items-center gap-2">
