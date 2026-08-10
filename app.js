@@ -290,6 +290,16 @@ document.addEventListener("DOMContentLoaded", () => {
     fontReady = false;
   }
 
+  // «1 товар / 2 товари / 5 товарів»
+  function pluralUa(n, one, few, many) {
+    const mod100 = Math.abs(n) % 100;
+    const mod10 = mod100 % 10;
+    if (mod100 >= 11 && mod100 <= 14) return many;
+    if (mod10 === 1) return one;
+    if (mod10 >= 2 && mod10 <= 4) return few;
+    return many;
+  }
+
   function renderSuppliers(highlightBatch = null) {
     container.innerHTML = "";
     if (highlightBatch?.animate) {
@@ -317,7 +327,12 @@ document.addEventListener("DOMContentLoaded", () => {
         visibleItems.forEach(item => { if (item._selected === undefined) item._selected = false; });
       }
       if (visibleItems.length === 0) return;
-      const anySelected = visibleItems.some(i => i._selected);
+      const selectedItemsView = visibleItems.filter(i => i._selected);
+      const anySelected = selectedItemsView.length > 0;
+      const selectedQty = selectedItemsView.reduce((sum, i) => {
+        const q = Number(i.quantity);
+        return sum + (Number.isFinite(q) && q > 0 ? q : 1);
+      }, 0);
 
       const batches = {};
       const batchKey = (it) => currentView === "ordered" ? (it.batchId || "unsorted") : "current";
@@ -348,8 +363,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentView === "new") {
         html += `
           <div class="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-xl">
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 flex-wrap">
                 <div class="text-lg font-semibold">${supplier.name}</div>
+                <span class="selected-counter inline-flex items-center gap-1.5 text-[12px] font-semibold bg-white/20 border border-white/30 px-2.5 py-1 rounded-full whitespace-nowrap ${anySelected ? "" : "hidden"}">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6 9 17l-5-5"/>
+                  </svg>
+                  Виділено ${selectedItemsView.length} ${pluralUa(selectedItemsView.length, "товар", "товари", "товарів")} з ${visibleItems.length} · ${selectedQty} шт
+                </span>
               </div>
               <div class="inline-flex items-center gap-2">
                 <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white ${currentBrand === "png_druk" ? "" : "hidden"}"
