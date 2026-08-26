@@ -39,6 +39,20 @@
   --r-sm: 10px;
 }
 
+/* Іконки у скляних компонентах ніколи не розтягуються під flex-контейнер:
+   власний розмір задає лише клас, а без нього лишається безпечний дефолт */
+.gbtn > svg,
+.badge > svg,
+.head-chip > svg,
+.tab-btn > svg,
+.icon-btn > svg,
+.copy-btn > svg,
+.modal-close > svg { flex: none; }
+
+.gbtn > svg:not([class*="w-"]),
+.badge > svg:not([class*="w-"]),
+.head-chip > svg:not([class*="w-"]) { width: 16px; height: 16px; }
+
 /* ---------- Фон сторінки: ambient mesh + зерно ---------- */
 
 html { background: #eef1f7; }
@@ -685,6 +699,8 @@ body::after {
   letter-spacing: -.01em;
   color: var(--ink);
 }
+/* Іконка заголовка не має розтягуватись, якщо Tailwind не долетів */
+.modal-title > svg { width: 20px; height: 20px; flex: none; }
 .modal-sub { margin-top: 4px; font-size: 12px; color: var(--ink-soft); }
 
 .modal-close {
