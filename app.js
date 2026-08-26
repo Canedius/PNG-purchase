@@ -120,6 +120,114 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   const getSkuPhoto = (sku) => skuPhotos.get(normalizeSku(sku)) || null;
 
+  // === Локальний кеш картинок (IndexedDB) ===
+  // Кожне фото качаємо з KeyCRM/imgbb рівно один раз, далі беремо з диска браузера.
+  // Ключ — сам URL фото, тож нове фото кешується автоматично при першому показі.
+  const PHOTO_DB = "zakupka_photos";
+  const PHOTO_STORE = "photos";
+  const PHOTO_TTL_MS = 90 * 24 * 60 * 60 * 1000; // не чіпали 90 днів — чистимо
+  let photoDbPromise = null;
+  function openPhotoDb() {
+    if (photoDbPromise) return photoDbPromise;
+    photoDbPromise = new Promise((resolve) => {
+      try {
+        const req = indexedDB.open(PHOTO_DB, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(PHOTO_STORE)) db.createObjectStore(PHOTO_STORE, { keyPath: "url" });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);   // приватний режим / заблоковане сховище
+        req.onblocked = () => resolve(null);
+      } catch (e) { resolve(null); }
+    });
+    return photoDbPromise;
+  }
+  const idbReq = (req) => new Promise((resolve) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+  async function photoCacheGet(url) {
+    const db = await openPhotoDb();
+    if (!db) return null;
+    try { return await idbReq(db.transaction(PHOTO_STORE, "readonly").objectStore(PHOTO_STORE).get(url)); }
+    catch (e) { return null; }
+  }
+  async function photoCachePut(url, blob) {
+    const db = await openPhotoDb();
+    if (!db) return;
+    try { await idbReq(db.transaction(PHOTO_STORE, "readwrite").objectStore(PHOTO_STORE).put({ url, blob, savedAt: Date.now() })); }
+    catch (e) {}
+  }
+  async function prunePhotoCache() {
+    const db = await openPhotoDb();
+    if (!db) return;
+    try {
+      const store = db.transaction(PHOTO_STORE, "readwrite").objectStore(PHOTO_STORE);
+      const all = await idbReq(store.getAll());
+      const dead = Date.now() - PHOTO_TTL_MS;
+      (all || []).forEach(rec => { if (!rec?.savedAt || rec.savedAt < dead) store.delete(rec.url); });
+    } catch (e) {}
+  }
+
+  const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+
+  const photoObjectUrls = new Map(); // віддалений URL -> blob: URL цієї сесії
+  const photoPending = new Map();    // щоб те саме фото не тягнулось двічі паралельно
+  // Повертає локальний blob:-URL або null, якщо закешувати не вдалось (CORS тощо)
+  function cachedPhotoUrl(url) {
+    if (!url || url.startsWith("data:")) return Promise.resolve(null);
+    if (photoObjectUrls.has(url)) return Promise.resolve(photoObjectUrls.get(url));
+    if (photoPending.has(url)) return photoPending.get(url);
+    const task = (async () => {
+      const rec = await photoCacheGet(url);
+      let blob = rec?.blob || null;
+      if (blob) {
+        photoCachePut(url, blob); // освіжаємо мітку часу, щоб не вичистило
+      } else {
+        try {
+          const resp = await fetch(url, { cache: "force-cache" });
+          if (!resp.ok) return null;
+          const fetched = await resp.blob();
+          if (!fetched.type.startsWith("image/") || fetched.size < 50) return null;
+          blob = fetched;
+          await photoCachePut(url, blob);
+        } catch (e) {
+          return null; // не кешується — сторінка просто візьме звичайний URL
+        }
+      }
+      const objUrl = URL.createObjectURL(blob);
+      photoObjectUrls.set(url, objUrl);
+      return objUrl;
+    })().finally(() => photoPending.delete(url));
+    photoPending.set(url, task);
+    return task;
+  }
+  // Малюємо картинку через кеш: у розмітці лишаємо data-remote, а src підставляємо тут
+  const photoImgTag = (url, cls) => {
+    const safe = url || defaultPhoto;
+    const remote = url && !url.startsWith("data:") ? url : "";
+    // якщо вже тягнули в цій сесії — одразу локальний blob:, без мигання
+    const ready = remote ? photoObjectUrls.get(remote) : null;
+    const src = ready || (remote ? defaultPhoto : safe);
+    return `<img src="${src}" data-remote="${remote}" data-full="${ready || safe}" alt="Фото" class="${cls}">`;
+  };
+  async function hydratePhotos(root = document) {
+    const imgs = [...root.querySelectorAll("img[data-remote]")].filter(i => i.dataset.remote);
+    await Promise.all(imgs.map(async (img) => {
+      const remote = img.dataset.remote;
+      const local = await cachedPhotoUrl(remote);
+      const src = local || remote; // не закешувалось — вантажимо як раніше
+      img.src = src;
+      img.dataset.full = src;
+    }));
+  }
+
   // === Пам'ять «взято зі складу» ===
   // Після списання залишок падає і бейдж «Є на складі» зникає, тому окремо
   // запам'ятовуємо, скільки штук по рядку взяли зі складу — щоб у «Замовлено»
@@ -567,7 +675,7 @@ document.addEventListener("DOMContentLoaded", () => {
                           </div>
                         </td>
                         <td class="px-3 py-2 text-sm" style="background:${bg}">
-                          <img src="${item.photo || defaultPhoto}" data-full="${item.photo || defaultPhoto}" alt="Фото" class="thumb-img rounded border border-slate-200 bg-white">
+                          ${photoImgTag(item.photo, "thumb-img rounded border border-slate-200 bg-white")}
                         </td>
                         <td class="px-3 py-2 text-sm" style="background:${bg}">
                           <div class="flex items-center gap-2 group flex-wrap">
@@ -789,6 +897,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     attachPreviewHandlers();
+    hydratePhotos(container);
   }
 
   async function generatePdf(supplier, batchId = null) {
@@ -946,6 +1055,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!v) return placeholderEntry;
         return { data: v.data, format: v.format, ratio: v.ratio };
       }
+      // Спершу локальний кеш — тоді PDF будується без мережі
+      const cached = await photoCacheGet(url);
+      if (cached?.blob) {
+        try {
+          const v = await validateImage(await blobToDataUrl(cached.blob));
+          if (v) return { data: v.data, format: v.format, ratio: v.ratio };
+        } catch (e) {}
+      }
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort("timeout"), 4000);
@@ -955,12 +1072,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!resp.ok || !contentType.startsWith("image/")) throw new Error("not image");
         const blob = await resp.blob();
         if (blob.size < 50) throw new Error("too small");
-        const dataUrl = await new Promise((resolve, reject) => {
-          const fr = new FileReader();
-          fr.onload = () => resolve(fr.result);
-          fr.onerror = reject;
-          fr.readAsDataURL(blob);
-        });
+        photoCachePut(url, blob); // заодно кладемо в кеш для наступних разів
+        const dataUrl = await blobToDataUrl(blob);
         const v = await validateImage(dataUrl);
         if (!v) return placeholderEntry; // битий файл — підставляємо placeholder
         return { data: v.data, format: v.format, ratio: v.ratio };
@@ -1558,7 +1671,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <tr>
               <td class="py-2 px-2">
                 ${getSkuPhoto(it.sku)
-                  ? `<img src="${getSkuPhoto(it.sku)}" data-full="${getSkuPhoto(it.sku)}" alt="Фото" class="thumb-img rounded border border-slate-200 bg-white">`
+                  ? photoImgTag(getSkuPhoto(it.sku), "thumb-img rounded border border-slate-200 bg-white")
                   : `<div class="thumb-img rounded border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300" title="Фото не знайдено">
                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
@@ -1586,6 +1699,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </tbody>
       </table>`;
     attachPreviewHandlers(stList);
+    hydratePhotos(stList);
     stList.querySelectorAll(".st-del").forEach(btn =>
       btn.addEventListener("click", () => deleteStock(btn.dataset.sku, btn))
     );
@@ -1704,4 +1818,5 @@ document.addEventListener("DOMContentLoaded", () => {
   } catch (e) {}
   setBrand(initialBrand, { load: false }); // виставляємо бренд без зайвого завантаження
   setTabState(initialView);                // встановлює вкладку і вантажить дані один раз
+  prunePhotoCache();                       // прибираємо фото, яких не торкались 90 днів
 });
