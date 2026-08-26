@@ -102,6 +102,95 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!key) return null;
     return stockMap.get(key) || null;
   };
+
+  // === Фото до артикулів ===
+  // Бекенд залишків не зберігає фото, тому збираємо їх з даних закупівлі
+  // (SKU -> photo) і кешуємо, щоб вони лишались і після зміни вкладки.
+  const skuPhotoKey = "zakupka_sku_photos_v1";
+  const loadSkuPhotos = () => {
+    try {
+      const raw = localStorage.getItem(skuPhotoKey);
+      const obj = raw ? JSON.parse(raw) : null;
+      return obj && typeof obj === "object" ? new Map(Object.entries(obj)) : new Map();
+    } catch (e) { return new Map(); }
+  };
+  let skuPhotos = loadSkuPhotos();
+  const saveSkuPhotos = () => {
+    try { localStorage.setItem(skuPhotoKey, JSON.stringify(Object.fromEntries(skuPhotos))); } catch (e) {}
+  };
+  const getSkuPhoto = (sku) => skuPhotos.get(normalizeSku(sku)) || null;
+
+  // === Пам'ять «взято зі складу» ===
+  // Після списання залишок падає і бейдж «Є на складі» зникає, тому окремо
+  // запам'ятовуємо, скільки штук по рядку взяли зі складу — щоб у «Замовлено»
+  // було видно, що товар треба шукати на складі, а не чекати від постачальника.
+  const stockTakenKey = "zakupka_stock_taken_v1";
+  const loadStockTaken = () => {
+    try {
+      const raw = localStorage.getItem(stockTakenKey);
+      const obj = raw ? JSON.parse(raw) : null;
+      return obj && typeof obj === "object" ? obj : {};
+    } catch (e) { return {}; }
+  };
+  let stockTaken = loadStockTaken();
+  const saveStockTaken = () => {
+    try { localStorage.setItem(stockTakenKey, JSON.stringify(stockTaken)); } catch (e) {}
+  };
+  const itemStockKey = (item) =>
+    item?.id != null && item.id !== "" ? `id:${item.id}` : `ord:${item?.orderNumber}|${normalizeSku(item?.sku)}`;
+  const getStockTaken = (item) => Number(stockTaken[itemStockKey(item)]) || 0;
+  // Розподіляємо списану кількість по рядках того ж артикулу (по порядку)
+  function rememberStockTaken(items, usage) {
+    let changed = false;
+    (usage || []).forEach(u => {
+      let left = Number(u.use) || 0;
+      const key = normalizeSku(u.stock.sku);
+      items.filter(it => normalizeSku(it.sku) === key).forEach(it => {
+        if (left <= 0) return;
+        let need = Number(it.quantity);
+        if (!Number.isFinite(need) || need <= 0) need = 1;
+        const alloc = Math.min(need, left);
+        left -= alloc;
+        stockTaken[itemStockKey(it)] = (Number(stockTaken[itemStockKey(it)]) || 0) + alloc;
+        changed = true;
+      });
+    });
+    if (changed) saveStockTaken();
+  }
+  // Запам'ятовуємо фото з сирих рядків бекенду; повертає true, якщо щось змінилось
+  function rememberSkuPhotos(rows) {
+    let changed = false;
+    (rows || []).forEach(r => {
+      const key = normalizeSku(r?.SKU);
+      const photo = r?.photo;
+      if (!key || !photo) return;
+      if (skuPhotos.get(key) === photo) return;
+      skuPhotos.set(key, photo);
+      changed = true;
+    });
+    if (changed) saveSkuPhotos();
+    return changed;
+  }
+  // Догружаємо фото для артикулів складу, яких немає в поточній вкладці
+  async function ensureStockPhotos() {
+    const missing = [...stockMap.keys()].filter(k => !skuPhotos.has(k));
+    if (!missing.length) return false;
+    try {
+      const lists = await Promise.all(["to_buy", "ordered"].map(async (st) => {
+        const resp = await fetch(`${dataUrl}?status=${encodeURIComponent(st)}`, { cache: "no-store" });
+        if (!resp.ok) return [];
+        const text = await resp.text();
+        if (!text || !text.trim()) return [];
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? parsed : [];
+      }));
+      return rememberSkuPhotos([].concat(...lists));
+    } catch (e) {
+      console.warn("Не вдалося підтягнути фото до залишків", e);
+      return false;
+    }
+  }
+
   async function loadStock() {
     try {
       const resp = await fetch(stockListUrl, { cache: "no-store" });
@@ -115,7 +204,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!r) return;
         const key = normalizeSku(r.sku);
         if (!key) return;
-        next.set(key, { sku: String(r.sku).trim(), name: r.name || "", quantity: Number(r.quantity) || 0 });
+        const qty = Number(r.quantity) || 0;
+        if (qty <= 0) return; // нульові залишки не показуємо взагалі
+        next.set(key, { sku: String(r.sku).trim(), name: r.name || "", quantity: qty });
       });
       stockMap = next;
     } catch (e) {
@@ -123,17 +214,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Записати нову кількість залишку (0 — лишаємо рядок, бейдж ховається)
+  // Записати нову кількість залишку. 0 — артикул повністю прибираємо зі складу.
   async function setStockQuantity(stock, newQty) {
     const qty = Math.max(0, Number(newQty) || 0);
-    const payload = { sku: stock.sku, name: stock.name || "", quantity: qty };
+    const payload = qty > 0
+      ? { sku: stock.sku, name: stock.name || "", quantity: qty }
+      : { sku: stock.sku, _delete: true };
     const resp = await fetch(stockSaveUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    stockMap.set(normalizeSku(stock.sku), { sku: stock.sku, name: stock.name || "", quantity: qty });
+    const key = normalizeSku(stock.sku);
+    if (qty > 0) stockMap.set(key, { sku: stock.sku, name: stock.name || "", quantity: qty });
+    else stockMap.delete(key);
   }
 
   // Питає, чи списати товар зі складу. Повертає:
@@ -218,8 +313,8 @@ document.addEventListener("DOMContentLoaded", () => {
   preview.innerHTML = `<img src="" alt="preview">`;
   document.body.appendChild(preview);
 
-  function attachPreviewHandlers() {
-    document.querySelectorAll(".thumb-img").forEach(img => {
+  function attachPreviewHandlers(root = document) {
+    root.querySelectorAll(".thumb-img").forEach(img => {
       img.addEventListener("mouseenter", (e) => {
         const src = e.currentTarget.dataset.full || e.currentTarget.src;
         preview.querySelector("img").src = src;
@@ -478,6 +573,14 @@ document.addEventListener("DOMContentLoaded", () => {
                           <div class="flex items-center gap-2 group flex-wrap">
                             <span>${item.productName}</span>
                             ${(() => {
+                              // Уже списано зі складу — показуємо це замість «Є на складі»
+                              const taken = getStockTaken(item);
+                              if (taken > 0) {
+                                return `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full whitespace-nowrap" title="Ці штуки взяті зі складу — шукати на складі, постачальник їх не везе">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+                                    Зі складу: ${taken} шт
+                                   </span>`;
+                              }
                               const key = normalizeSku(item.sku);
                               const rem = stockRemaining.get(key);
                               if (rem === undefined || rem <= 0) return "";
@@ -610,6 +713,8 @@ document.addEventListener("DOMContentLoaded", () => {
               for (const u of decision.usage) {
                 await setStockQuantity(u.stock, u.stock.quantity - u.use);
               }
+              // Лишаємо слід, що ці рядки беруться зі складу
+              rememberStockTaken(changedItems, decision.usage);
             } catch (err) {
               alert(`Не вдалося списати зі складу: ${err.message}. Перенесення скасовано.`);
               return renderSuppliers();
@@ -1072,6 +1177,7 @@ document.addEventListener("DOMContentLoaded", () => {
           (r.SKU || r.ProductName) &&
           allowed.has(r.company_tag)
         );
+        rememberSkuPhotos(rows);
       }
       if (!Array.isArray(rows) || rows.length === 0) {
         const msg = currentView === "ordered"
@@ -1431,7 +1537,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderStockList() {
     if (!stList) return;
-    const items = [...stockMap.values()].sort((a, b) => a.sku.localeCompare(b.sku, "uk"));
+    const items = [...stockMap.values()].filter(it => it.quantity > 0).sort((a, b) => a.sku.localeCompare(b.sku, "uk"));
     if (items.length === 0) {
       stList.innerHTML = `<div class="text-sm text-slate-400 text-center py-6">Поки що немає жодного артикулу на складі.</div>`;
       return;
@@ -1440,6 +1546,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <table class="min-w-full text-sm">
         <thead class="text-xs text-slate-500">
           <tr class="border-b border-slate-200">
+            <th class="text-left font-medium py-2 px-2 w-14">Фото</th>
             <th class="text-left font-medium py-2 px-2">Артикул</th>
             <th class="text-left font-medium py-2 px-2">Назва</th>
             <th class="text-center font-medium py-2 px-2 w-20">К-сть</th>
@@ -1449,6 +1556,15 @@ document.addEventListener("DOMContentLoaded", () => {
         <tbody class="divide-y divide-slate-100">
           ${items.map(it => `
             <tr>
+              <td class="py-2 px-2">
+                ${getSkuPhoto(it.sku)
+                  ? `<img src="${getSkuPhoto(it.sku)}" data-full="${getSkuPhoto(it.sku)}" alt="Фото" class="thumb-img rounded border border-slate-200 bg-white">`
+                  : `<div class="thumb-img rounded border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300" title="Фото не знайдено">
+                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                         <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                       </svg>
+                     </div>`}
+              </td>
               <td class="py-2 px-2 font-medium text-slate-800">${it.sku}</td>
               <td class="py-2 px-2 text-slate-600">${it.name || "<span class='text-slate-300'>—</span>"}</td>
               <td class="py-2 px-2 text-center">
@@ -1469,6 +1585,7 @@ document.addEventListener("DOMContentLoaded", () => {
           `).join("")}
         </tbody>
       </table>`;
+    attachPreviewHandlers(stList);
     stList.querySelectorAll(".st-del").forEach(btn =>
       btn.addEventListener("click", () => deleteStock(btn.dataset.sku, btn))
     );
@@ -1483,9 +1600,10 @@ document.addEventListener("DOMContentLoaded", () => {
         inp.disabled = true;
         try {
           await setStockQuantity(cur, qty);
+          renderSuppliers(); // оновити бейджі в таблиці
+          if (qty === 0) { renderStockList(); return; } // 0 — артикул зник зі складу
           inp.classList.add("ring-2", "ring-emerald-400");
           setTimeout(() => inp.classList.remove("ring-2", "ring-emerald-400"), 700);
-          renderSuppliers(); // оновити бейджі в таблиці
         } catch (e) {
           inp.value = cur.quantity; // відкат
           if (stMsg) stMsg.textContent = "Не вдалося зберегти кількість: " + e.message;
@@ -1506,6 +1624,8 @@ document.addEventListener("DOMContentLoaded", () => {
     stList.innerHTML = `<div class="text-sm text-slate-400 text-center py-6">Завантаження…</div>`;
     await loadStock();
     renderStockList();
+    // Фото для артикулів, яких немає в поточній вкладці, тягнемо фоново
+    if (await ensureStockPhotos()) renderStockList();
   }
   function closeStockModal() {
     if (stockModal) stockModal.classList.add("hidden");
@@ -1516,10 +1636,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const sku = (stSku.value || "").trim();
     if (!sku) { stMsg.textContent = "Вкажіть артикул."; return; }
     const qty = Number(stQty.value);
+    if (!Number.isFinite(qty) || qty <= 0) { stMsg.textContent = "Кількість має бути більшою за 0."; return; }
     const payload = {
       sku,
       name: (stName.value || "").trim(),
-      quantity: Number.isFinite(qty) && qty >= 0 ? qty : 0
+      quantity: qty
     };
     stAdd.disabled = true;
     const prevTxt = stAdd.textContent;
