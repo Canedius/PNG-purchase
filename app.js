@@ -46,6 +46,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const mSupplierWrap = document.getElementById("mSupplierWrap");
   const mSupplier = document.getElementById("mSupplier");
   const addSupplierBtn = document.getElementById("addSupplierBtn");
+  // Індикатор автооновлення в шапці
+  const autoChip = document.getElementById("autoRefreshChip");
+  const autoChipText = document.getElementById("autoRefreshText");
   let oneOffTarget = { supplier: null, batch: null, date: null };
   const { jsPDF } = window.jspdf;
   let logoDataPromise = null;
@@ -367,14 +370,14 @@ document.addEventListener("DOMContentLoaded", () => {
     listEl.innerHTML = rows.map((r, i) => {
       const def = Math.min(r.ordered, r.stock.quantity);
       return `
-        <div class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+        <div class="glass-soft flex items-center gap-3 px-3 py-2.5">
           <div class="min-w-0 grow">
-            <div class="text-sm font-medium text-slate-800 truncate">${r.stock.name || r.stock.sku}</div>
-            <div class="text-xs text-slate-500">Артикул: <span class="font-mono">${r.stock.sku}</span> · на складі: <b>${r.stock.quantity} шт</b> · замовляється: ${r.ordered} шт</div>
+            <div class="text-[13px] font-semibold text-slate-800 truncate">${r.stock.name || r.stock.sku}</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">Артикул: <span class="font-mono">${r.stock.sku}</span> · на складі: <b>${r.stock.quantity} шт</b> · замовляється: ${r.ordered} шт</div>
           </div>
-          <label class="text-xs text-slate-500 shrink-0">
+          <label class="text-[11px] text-slate-500 shrink-0 text-center">
             списати
-            <input type="number" class="stock-use-input mt-1 w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm text-center focus:ring-2 focus:ring-emerald-500"
+            <input type="number" class="stock-use-input gfield gfield-emerald w-20 text-center mt-1"
                    data-idx="${i}" min="0" max="${r.stock.quantity}" value="${def}">
           </label>
         </div>`;
@@ -500,7 +503,7 @@ document.addEventListener("DOMContentLoaded", () => {
       container.addEventListener("animationend", () => container.classList.remove("fade-in-up"), { once: true });
     }
     if (suppliers.length === 0) {
-      container.innerHTML = `<div class="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+      container.innerHTML = `<div class="empty-state rise-in">
         Даних поки немає. Підключіть API та заповніть suppliers.
       </div>`;
       return;
@@ -536,11 +539,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const section = document.createElement("section");
-      section.className = "bg-white shadow rounded-xl border border-slate-200";
+      section.className = "glass-card is-static rise-in";
+      section.style.animationDelay = `${Math.min(idx, 6) * 0.05}s`;
       supplier._printedBatches = supplier._printedBatches || [];
       supplier._ttnByBatch = supplier._ttnByBatch || {};
       const confirmPrintBtn = (!supplier._printed && supplier._printRequested)
-        ? `<button class="confirm-print inline-flex items-center gap-1 bg-white text-emerald-600 border border-emerald-500 hover:bg-emerald-50 transition px-2 py-1 rounded text-xs"
+        ? `<button class="confirm-print gbtn gbtn-on-dark text-[12px]"
                      data-index="${idx}" title="Підтвердити, що друк виконано">
                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                  <path d="M20 6 9 17l-5-5"/>
@@ -551,10 +555,10 @@ document.addEventListener("DOMContentLoaded", () => {
       let html = "";
       if (currentView === "new") {
         html += `
-          <div class="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-xl">
-              <div class="flex items-center gap-3 flex-wrap">
-                <div class="text-lg font-semibold">${supplier.name}</div>
-                <span class="selected-counter inline-flex items-center gap-1.5 text-[12px] font-semibold bg-white/20 border border-white/30 px-2.5 py-1 rounded-full whitespace-nowrap ${anySelected ? "" : "hidden"}">
+          <div class="supplier-head">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <div class="supplier-name">${supplier.name}</div>
+                <span class="selected-counter head-chip ${anySelected ? "" : "hidden"}">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6 9 17l-5-5"/>
                   </svg>
@@ -562,14 +566,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 </span>
               </div>
               <div class="inline-flex items-center gap-2">
-                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white ${currentBrand === "png_druk" ? "" : "hidden"}"
+                <button class="add-oneoff-btn gbtn gbtn-on-dark text-[12px] ${currentBrand === "png_druk" ? "" : "hidden"}"
                         data-supplier="${idx}" data-batch="" data-date="${visibleItems[0]?.dateOrder || ""}" title="Додати одноразовий товар">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 5v14M5 12h14"/>
                   </svg>
                   Додати
                 </button>
-                <button class="mark-btn inline-flex items-center justify-center bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 active:translate-y-0.5 transition px-2.5 py-1.5 rounded-md shadow-sm text-sm ${anySelected ? "" : "hidden"}"
+                <button class="mark-btn gbtn gbtn-icon ${anySelected ? "" : "hidden"}"
                                 data-index="${idx}" title="Позначити замовлено" data-icon="${markIconIdx}">
                   ${renderMarkIcon(markIconIdx)}
                 </button>
@@ -580,7 +584,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
       }
 
-      html += `<div class="space-y-4 pt-1">`;
+      html += `<div class="space-y-3 p-3">`;
       html += batchEntries.map(([batchId, batchItems]) => {
         const grouped = {};
         batchItems.forEach(item => {
@@ -606,28 +610,28 @@ document.addEventListener("DOMContentLoaded", () => {
         const showHeader = currentView === "ordered";
         const highlight = highlightBatch && highlightBatch.supplier === idx && highlightBatch.batchId === batchId;
         return `
-          <div class="rounded-lg border border-slate-200 shadow-sm overflow-hidden bg-white ${highlight ? "pulse-soft ring-2 ring-emerald-300" : ""}">
+          <div class="glass-soft overflow-hidden ${highlight ? "pulse-soft ring-emerald" : ""}">
             ${showHeader ? `
-            <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
-              <div class="flex items-center gap-3 flex-wrap">
-                <div class="text-lg font-semibold">${supplier.name}</div>
-                <span class="text-[12px] bg-white/20 px-2 py-1 rounded-full">${batchLabel}</span>
-                <input type="text" class="ttn-input text-sm px-3 py-1 rounded-md bg-white/20 border border-white/30 placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            <div class="supplier-head">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <div class="supplier-name">${supplier.name}</div>
+                <span class="head-chip">${batchLabel}</span>
+                <input type="text" class="ttn-input"
                        data-supplier="${idx}" data-batch="${batchId}" placeholder="ТТН" value="${supplier._ttnByBatch[batchId] || ""}">
               </div>
               <div class="flex items-center gap-2">
-                <button class="add-oneoff-btn inline-flex items-center gap-1 bg-white/90 text-indigo-700 px-2.5 py-1.5 rounded-md text-xs hover:bg-white ${currentBrand === "png_druk" ? "" : "hidden"}"
+                <button class="add-oneoff-btn gbtn gbtn-on-dark text-[12px] ${currentBrand === "png_druk" ? "" : "hidden"}"
                         data-supplier="${idx}" data-batch="${batchId}" data-date="${firstItem?.dateOrder || fallbackDate || ""}" title="Додати одноразовий товар">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 5v14M5 12h14"/>
                   </svg>
                   Додати
                 </button>
-                ${printed ? `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                ${printed ? `<span class="head-chip">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6 9 17l-5-5"/>
                   </svg> Друковано</span>` : ""}
-                <button class="print-btn inline-flex items-center justify-center bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 active:translate-y-0.5 transition px-2 py-1.5 rounded-md shadow-sm text-sm ${currentView === "ordered" ? "" : "hidden"}"
+                <button class="print-btn gbtn gbtn-icon gbtn-on-dark ${currentView === "ordered" ? "" : "hidden"}"
                         data-index="${idx}" data-batch="${batchId}" title="Друк цієї партії">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor" aria-label="Print">
                     <path d="M7 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2h-2V5H9v2H7V5Z"/>
@@ -638,53 +642,51 @@ document.addEventListener("DOMContentLoaded", () => {
                 </button>
               </div>
             </div>` : ""}
-            <div class="overflow-x-auto rounded-lg border border-slate-200">
-              <table class="min-w-full bg-white text-slate-800">
-                <thead class="bg-slate-100">
+            <div class="table-wrap scroll-slim">
+              <table class="glass-table">
+                <thead>
                   <tr>
-                    <th class="w-10 px-2 py-2 text-center">
-                      <input type="checkbox" class="toggle-all styled-check" data-index="${idx}" data-batch="${batchId}" ${batchItems.length>0 && batchItems.every(i => i._selected) ? "checked" : ""}>
+                    <th class="w-9 text-center">
+                      <input type="checkbox" class="toggle-all styled-check mx-auto" data-index="${idx}" data-batch="${batchId}" ${batchItems.length>0 && batchItems.every(i => i._selected) ? "checked" : ""}>
                     </th>
-                    ${columns.map(col => `<th class="px-3 py-2 text-left text-sm font-semibold text-slate-700">${col}</th>`).join("")}
-                    <th class="w-10 px-2 py-2"></th>
+                    ${columns.map(col => `<th>${col}</th>`).join("")}
+                    <th class="w-9"></th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody>
                   ${Object.keys(grouped).map((order, groupIdx) => {
                     const rows = grouped[order];
-                    const color = "#3b82f6";
-                    const bg = "#f5f7ff";
                     return `
-                    <tr><td colspan="${2 + columns.length}" class="bg-transparent h-1" style="background:${bg}; ${groupIdx === 0 ? "border-top: 0;" : `border-top: 3px solid ${color};`}"></td></tr>
+                    <tr class="group-sep ${groupIdx === 0 ? "is-first" : ""}"><td colspan="${2 + columns.length}"></td></tr>
                     ${rows.map(item => {
                       const itemIdx = supplier.items.indexOf(item);
                       return `
-                      <tr class="hover:bg-indigo-50 transition" style="background:${bg};">
-                        <td class="px-2 py-2 text-center border-l-4" style="border-color:${color}; background:${bg}">
+                      <tr>
+                        <td class="text-center row-lead">
                           <input type="checkbox" class="row-check styled-check" data-supplier="${idx}" data-item="${itemIdx}" ${item._selected ? "checked" : ""}>
                         </td>
-                        <td class="px-3 py-2 text-sm" style="background:${bg}">${item.dateOrder}</td>
-                        <td class="px-3 py-2 text-sm" style="background:${bg}">
+                        <td>${item.dateOrder}</td>
+                        <td>
                           <div class="flex items-center gap-2 group">
-                            <a class="text-indigo-600 underline" href="${item.orderLink}" target="_blank" rel="noopener">${item.orderNumber}</a>
-                            <button class="copy-btn text-indigo-600 hover:text-indigo-800 transition opacity-0 group-hover:opacity-100" data-copy="${item.orderNumber}" title="Копіювати номер замовлення">
+                            <a class="cell-link" href="${item.orderLink}" target="_blank" rel="noopener">${item.orderNumber}</a>
+                            <button class="copy-btn" data-copy="${item.orderNumber}" title="Копіювати номер замовлення">
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4 fill-current">
                                 <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Z M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h12v14Z"/>
                               </svg>
                             </button>
                           </div>
                         </td>
-                        <td class="px-3 py-2 text-sm" style="background:${bg}">
-                          ${photoImgTag(item.photo, "thumb-img rounded border border-slate-200 bg-white")}
+                        <td>
+                          ${photoImgTag(item.photo, "thumb-img")}
                         </td>
-                        <td class="px-3 py-2 text-sm" style="background:${bg}">
+                        <td>
                           <div class="flex items-center gap-2 group flex-wrap">
                             <span>${item.productName}</span>
                             ${(() => {
                               // Уже списано зі складу — показуємо це замість «Є на складі»
                               const taken = getStockTaken(item);
                               if (taken > 0) {
-                                return `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full whitespace-nowrap" title="Ці штуки взяті зі складу — шукати на складі, постачальник їх не везе">
+                                return `<span class="badge badge-amber" title="Ці штуки взяті зі складу — шукати на складі, постачальник їх не везе">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
                                     Зі складу: ${taken} шт
                                    </span>`;
@@ -697,32 +699,32 @@ document.addEventListener("DOMContentLoaded", () => {
                               const alloc = Math.min(need, rem);
                               if (alloc <= 0) return "";
                               stockRemaining.set(key, rem - alloc); // резервуємо під цей рядок
-                              return `<span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full whitespace-nowrap" title="Артикул є на складі">
+                              return `<span class="badge badge-emerald" title="Артикул є на складі">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                                     Є на складі: ${alloc} шт
                                    </span>`;
                             })()}
-                            <button class="copy-btn text-indigo-600 hover:text-indigo-800 transition opacity-0 group-hover:opacity-100" data-copy="${item.productName}" title="Копіювати назву">
+                            <button class="copy-btn" data-copy="${item.productName}" title="Копіювати назву">
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4 fill-current">
                                 <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Z M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h12v14Z"/>
                               </svg>
                             </button>
                           </div>
                         </td>
-                        <td class="px-3 py-2 text-sm" style="background:${bg}">${item.quantity}</td>
-                        <td class="px-3 py-2 text-sm" style="background:${bg}">
+                        <td>${item.quantity}</td>
+                        <td>
                           <div class="flex items-center gap-2 group">
                             <span>${item.sku}</span>
-                            <button class="copy-btn text-indigo-600 hover:text-indigo-800 transition opacity-0 group-hover:opacity-100" data-copy="${item.sku}" title="Копіювати артикул">
+                            <button class="copy-btn" data-copy="${item.sku}" title="Копіювати артикул">
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4 fill-current">
                                 <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Z M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h12v14Z"/>
                               </svg>
                             </button>
                           </div>
                         </td>
-                        <td class="px-3 py-2 text-sm font-semibold" style="background:${bg}">
+                        <td class="font-semibold">
                           ${currentView === "ordered"
-                            ? `<span class="inline-flex items-center gap-1 text-amber-600">
+                            ? `<span class="badge badge-amber">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                   <path d="M3 13V6a1 1 0 0 1 1-1h9v8H3Z"></path>
                                   <path d="M13 8h3l3 3v3h-6V8Z"></path>
@@ -731,10 +733,10 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </svg>
                                 В дорозі
                                </span>`
-                            : `<span class="text-emerald-600">Новий</span>`}
+                            : `<span class="badge badge-emerald">Новий</span>`}
                         </td>
-                        <td class="px-2 py-2 text-center" style="background:${bg}">
-                          <button class="delete-item-btn text-slate-400 hover:text-rose-600 transition" data-row-id="${item.id ?? ''}" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
+                        <td class="text-center">
+                          <button class="delete-item-btn icon-btn" data-row-id="${item.id ?? ''}" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                               <path d="M3 6h18"/>
                               <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -1260,11 +1262,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function loadData() {
-    container.innerHTML = `<div class="p-8 flex flex-col items-center gap-3 text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
-      <div class="spinner"></div>
-      <div class="text-sm font-medium">Завантажую дані...</div>
-    </div>`;
+  // Стан завантаження — щоб автооновлення не накладалось на ручне
+  let isLoading = false;
+  let lastLoadedAt = 0;
+  let loadSeq = 0; // номер запиту: відповідь від застарілого не малюємо
+
+  // silent: перечитуємо дані без спінера, не блимаючи вже показаною таблицею
+  async function loadData({ silent = false } = {}) {
+    if (isLoading && silent) return; // тихе оновлення поступається ручному
+    const seq = ++loadSeq;
+    isLoading = true;
+    // ТТН живе лише в пам'яті — рятуємо його від перебудови suppliers
+    const ttnBackup = new Map(suppliers.map(s => [String(s.key || s.name), s._ttnByBatch || {}]));
+    if (!silent) {
+      container.innerHTML = `<div class="empty-state flex flex-col items-center gap-3">
+        <div class="spinner"></div>
+        <div class="text-sm font-medium">Завантажую дані...</div>
+      </div>`;
+    }
     try {
       const statusParam = currentView === "ordered" ? "ordered" : "to_buy";
       // Залишки тягнемо паралельно (лише для PNG druk), щоб бейджі були готові до рендеру
@@ -1272,6 +1287,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const resp = await fetch(`${dataUrl}?status=${encodeURIComponent(statusParam)}`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const rawText = await resp.text();
+      if (seq !== loadSeq) return; // поки чекали, стартував новіший запит
       let rows = [];
       if (rawText && rawText.trim().length) {
         try {
@@ -1296,7 +1312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const msg = currentView === "ordered"
           ? "Замовлених товарів поки немає."
           : "Товарів для замовлення поки немає.";
-        container.innerHTML = `<div class="p-6 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+        container.innerHTML = `<div class="empty-state rise-in">
           ${msg}
         </div>`;
         if (typeof refreshOneOffSuppliers === "function") refreshOneOffSuppliers();
@@ -1338,7 +1354,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const lastB = Math.max(...b.items.map(i => new Date(i.raw?.updatedAt || i.raw?.createdAt || i.raw?.OrderDate || 0).getTime() || 0));
         return lastB - lastA;
       });
-      // Відновлюємо відмітки "Друковано" по ключу постачальника
+      // Відновлюємо відмітки "Друковано" та введені ТТН по ключу постачальника
       suppliers.forEach(s => {
         const key = String(s.key || s.name);
         const saved = printedStore[key];
@@ -1346,14 +1362,23 @@ document.addEventListener("DOMContentLoaded", () => {
           s._printed = !!saved.all;
           s._printedBatches = Array.isArray(saved.batches) ? [...saved.batches] : [];
         }
+        const ttn = ttnBackup.get(key);
+        if (ttn) s._ttnByBatch = { ...ttn };
       });
       await stockPromise;
       renderSuppliers();
     } catch (e) {
       console.error("Fetch error", e);
-      container.innerHTML = `<div class="p-6 text-center text-red-600 border border-dashed border-red-300 rounded-xl bg-white">
-        Не вдалося завантажити дані (${e.message}). Перевірте вебхук.
-      </div>`;
+      // Тихе оновлення не має зносити вже показану таблицю через мережевий збій
+      if (!silent) {
+        container.innerHTML = `<div class="empty-state is-error rise-in">
+          Не вдалося завантажити дані (${e.message}). Перевірте вебхук.
+        </div>`;
+      }
+    } finally {
+      isLoading = false;
+      lastLoadedAt = Date.now();
+      updateAutoChip();
     }
   }
 
@@ -1383,16 +1408,16 @@ document.addEventListener("DOMContentLoaded", () => {
       oneOffModal.classList.add("hidden");
     }
     if (view === "new") {
-      tabAll.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold bg-gradient-to-r from-indigo-50 to-amber-50 text-indigo-800 shadow-inner";
-      tabOrdered.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold text-slate-600 hover:bg-slate-50";
+      tabAll.className = "tab-btn is-active";
+      tabOrdered.className = "tab-btn";
       document.getElementById("flameIcon")?.classList.add("flame-active");
       document.getElementById("flameIcon")?.classList.remove("text-slate-400");
       document.getElementById("flameIcon")?.classList.add("text-rose-500");
       document.getElementById("clockIcon")?.classList.remove("clock-active","text-amber-500");
       document.getElementById("clockIcon")?.classList.add("text-slate-400");
     } else {
-      tabOrdered.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold bg-gradient-to-r from-indigo-50 to-amber-50 text-indigo-800 shadow-inner";
-      tabAll.className = "tab-btn flex items-center gap-2 px-6 py-3 text-base font-semibold text-slate-600 hover:bg-slate-50";
+      tabOrdered.className = "tab-btn is-active";
+      tabAll.className = "tab-btn";
       document.getElementById("flameIcon")?.classList.remove("flame-active");
       document.getElementById("flameIcon")?.classList.remove("text-rose-500");
       document.getElementById("flameIcon")?.classList.add("text-slate-400");
@@ -1409,11 +1434,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!BRAND_TAGS[brand]) return;
     currentBrand = brand;
     try { localStorage.setItem("brand", brand); } catch (e) {}
-    const activeCls = ["ring-2", "ring-indigo-500", "shadow"];
     [brandPngDruk, brandPngStudio].forEach(btn => {
       if (!btn) return;
-      const isActive = btn.dataset.brand === brand;
-      activeCls.forEach(c => btn.classList.toggle(c, isActive));
+      btn.classList.toggle("is-active", btn.dataset.brand === brand);
     });
     // Вкладки Поточні/Замовлено працюють для обох брендів (PNG druk і PNG studio)
     if (tabsBar) tabsBar.classList.remove("hidden");
@@ -1622,8 +1645,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("refreshBtn").addEventListener("click", async () => {
     const btn = document.getElementById("refreshBtn");
-    const prev = btn.innerText;
-    btn.innerText = "Оновлюю...";
+    const prev = btn.innerHTML; // саме innerHTML — інакше губиться іконка в кнопці
+    btn.innerHTML = "Оновлюю...";
     btn.disabled = true;
     try {
       await fetch("https://primary-production-eeb3.up.railway.app/webhook/08aca309-7ad4-460c-9610-a242e3c43789", { method: "POST" });
@@ -1633,8 +1656,56 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error(e);
     } finally {
       btn.disabled = false;
-      btn.innerText = prev;
+      btn.innerHTML = prev;
     }
+  });
+
+  // === Автооновлення ===
+  // Раз на хвилину тихо перечитуємо закупівлю. Сторінку не перезавантажуємо —
+  // оновлюються лише дані, тож нічого не блимає і скрол лишається на місці.
+  const AUTO_REFRESH_MS = 60 * 1000;
+
+  const anythingSelected = () => suppliers.some(s => s.items.some(i => i._selected));
+  const modalOpen = () => !!document.querySelector(".modal-backdrop:not(.hidden)");
+  const isTyping = () => ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
+
+  // Не чіпаємо сторінку, поки користувач із нею працює
+  function autoRefreshBlocked() {
+    return isLoading || modalOpen() || isTyping() || anythingSelected();
+  }
+
+  function updateAutoChip() {
+    if (!autoChip || !autoChipText) return;
+    const paused = autoRefreshBlocked() && !isLoading;
+    if (paused) {
+      autoChipText.textContent = "оновлення на паузі";
+    } else if (!lastLoadedAt) {
+      autoChipText.textContent = "оновлюю…";
+    } else {
+      const mins = Math.floor((Date.now() - lastLoadedAt) / 60000);
+      autoChipText.textContent = mins < 1 ? "оновлено щойно" : `оновлено ${mins} хв тому`;
+    }
+    autoChip.classList.toggle("is-paused", paused);
+  }
+
+  async function autoRefresh() {
+    if (document.hidden || autoRefreshBlocked()) return updateAutoChip();
+    autoChip?.classList.add("is-syncing");
+    try {
+      await loadData({ silent: true });
+    } catch (e) {
+      console.warn("Автооновлення не вдалося", e);
+    } finally {
+      autoChip?.classList.remove("is-syncing");
+    }
+  }
+
+  setInterval(autoRefresh, AUTO_REFRESH_MS);
+  setInterval(updateAutoChip, 15 * 1000);
+
+  // Повернулись на вкладку — підтягуємо одразу, якщо дані вже застаріли
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() - lastLoadedAt >= AUTO_REFRESH_MS) autoRefresh();
   });
 
   // === Модалка залишків на складі ===
@@ -1656,39 +1727,39 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     stList.innerHTML = `
-      <table class="min-w-full text-sm">
-        <thead class="text-xs text-slate-500">
-          <tr class="border-b border-slate-200">
-            <th class="text-left font-medium py-2 px-2 w-14">Фото</th>
-            <th class="text-left font-medium py-2 px-2">Артикул</th>
-            <th class="text-left font-medium py-2 px-2">Назва</th>
-            <th class="text-center font-medium py-2 px-2 w-20">К-сть</th>
-            <th class="w-10"></th>
+      <table class="glass-table">
+        <thead>
+          <tr>
+            <th class="w-14">Фото</th>
+            <th>Артикул</th>
+            <th>Назва</th>
+            <th class="w-20 text-center">К-сть</th>
+            <th class="w-9"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
+        <tbody>
           ${items.map(it => `
             <tr>
-              <td class="py-2 px-2">
+              <td>
                 ${getSkuPhoto(it.sku)
-                  ? photoImgTag(getSkuPhoto(it.sku), "thumb-img rounded border border-slate-200 bg-white")
-                  : `<div class="thumb-img rounded border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300" title="Фото не знайдено">
+                  ? photoImgTag(getSkuPhoto(it.sku), "thumb-img")
+                  : `<div class="thumb-img thumb-empty" title="Фото не знайдено">
                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
                        </svg>
                      </div>`}
               </td>
-              <td class="py-2 px-2 font-medium text-slate-800">${it.sku}</td>
-              <td class="py-2 px-2 text-slate-600">${it.name || "<span class='text-slate-300'>—</span>"}</td>
-              <td class="py-2 px-2 text-center">
+              <td class="font-semibold text-slate-800">${it.sku}</td>
+              <td class="text-slate-600">${it.name || "<span class='text-slate-300'>—</span>"}</td>
+              <td class="text-center">
                 <span class="inline-flex items-center gap-1">
                   <input type="number" min="0" value="${it.quantity}" data-sku="${it.sku}"
-                    class="st-qty w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm text-center text-emerald-700 font-semibold focus:ring-2 focus:ring-emerald-500">
-                  <span class="text-xs text-slate-400">шт</span>
+                    class="st-qty gfield gfield-emerald w-16 text-center text-emerald-700 font-semibold">
+                  <span class="text-[11px] text-slate-400">шт</span>
                 </span>
               </td>
-              <td class="py-2 px-2 text-center">
-                <button class="st-del text-slate-400 hover:text-rose-600 transition" data-sku="${it.sku}" title="Видалити зі складу">
+              <td class="text-center">
+                <button class="st-del icon-btn" data-sku="${it.sku}" title="Видалити зі складу">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                   </svg>
@@ -1716,8 +1787,8 @@ document.addEventListener("DOMContentLoaded", () => {
           await setStockQuantity(cur, qty);
           renderSuppliers(); // оновити бейджі в таблиці
           if (qty === 0) { renderStockList(); return; } // 0 — артикул зник зі складу
-          inp.classList.add("ring-2", "ring-emerald-400");
-          setTimeout(() => inp.classList.remove("ring-2", "ring-emerald-400"), 700);
+          inp.classList.add("ring-emerald");
+          setTimeout(() => inp.classList.remove("ring-emerald"), 700);
         } catch (e) {
           inp.value = cur.quantity; // відкат
           if (stMsg) stMsg.textContent = "Не вдалося зберегти кількість: " + e.message;

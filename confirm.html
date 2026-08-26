@@ -1,33 +1,47 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="uk">
 <head>
   <meta charset="utf-8">
   <title>Підтвердити отримання</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="styles.css?v=20260826c">
   <style>
-    :root { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#eef2ff; color:#0f172a; }
-    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card { width:100%; max-width:560px; background:#fff; border-radius:16px; padding:24px 26px;
-            box-shadow:0 18px 40px -18px rgba(15,23,42,0.35); }
-    .badge { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
-             background:#e0e7ff; color:#312e81; font-size:12px; font-weight:700; letter-spacing:0.02em; }
-    .title { margin:12px 0 6px; font-size:22px; font-weight:700; }
-    .row { margin:6px 0; }
-    .muted { color:#64748b; font-size:14px; margin:8px 0 0; }
-    .btn-wrap { margin-top:18px; display:flex; justify-content:center; }
-    .btn { min-width:220px; justify-content:center; display:inline-flex; align-items:center; gap:8px; padding:12px 18px; border:0; border-radius:12px;
-           background:#22c55e; color:#fff; font-weight:700; cursor:pointer; box-shadow:0 10px 25px -12px rgba(34,197,94,0.6); }
-    .btn:active { transform:translateY(1px); }
+    /* Сторінка-одинак: та сама скляна мова, лише центрована картка */
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .confirm-card {
+      width: 100%;
+      max-width: 520px;
+      padding: 26px 26px 22px;
+      animation: panelIn .5s var(--spring);
+    }
+    .title { margin: 12px 0 4px; font-size: 21px; font-weight: 700; letter-spacing: -.02em; }
+    .row { font-size: 14px; color: var(--ink-soft); }
+    .muted { color: var(--ink-soft); font-size: 13px; margin-top: 10px; min-height: 18px; }
+    .btn-wrap { margin-top: 20px; display: flex; justify-content: center; }
+    .btn-confirm { min-width: 230px; justify-content: center; padding: 11px 18px; font-size: 14px; border-radius: 13px; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="badge">Підтвердження отримання</div>
+  <div class="glass-card confirm-card">
+    <div class="badge badge-indigo">Підтвердження отримання</div>
     <div id="title" class="title"></div>
     <div id="info" class="row"></div>
     <div id="res" class="muted"></div>
     <div class="btn-wrap">
-      <button class="btn" id="confirm">Підтвердити</button>
+      <button class="gbtn gbtn-emerald btn-confirm" id="confirm">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        Підтвердити
+      </button>
     </div>
   </div>
 
