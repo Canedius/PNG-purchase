@@ -554,7 +554,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Обгортаємо знайдені літери, не ламаючи решту тексту
-  function highlight(text, positions) {
+  function highlightHits(text, positions) {
     const src = String(text ?? "");
     if (!positions || !positions.length) return src;
     const marked = new Set(positions);
@@ -779,7 +779,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         </td>
                         <td>
                           <div class="flex items-center gap-2 group flex-wrap">
-                            <span>${highlight(item.productName, item._match?.name)}</span>
+                            <span>${highlightHits(item.productName, item._match?.name)}</span>
                             ${(() => {
                               // Уже списано зі складу — показуємо це замість «Є на складі»
                               const taken = getStockTaken(item);
@@ -812,7 +812,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td>${item.quantity}</td>
                         <td>
                           <div class="flex items-center gap-2 group">
-                            <span>${highlight(item.sku, item._match?.sku)}</span>
+                            <span>${highlightHits(item.sku, item._match?.sku)}</span>
                             <button class="copy-btn" data-copy="${item.sku}" title="Копіювати артикул">
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4 fill-current">
                                 <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Z M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h12v14Z"/>
