@@ -403,6 +403,112 @@ body::after {
     inset 0 1px 0 rgba(255,255,255,.95);
 }
 
+/* ---------- Пошук ---------- */
+
+.search-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 260px;
+  flex: 1 1 260px;
+  max-width: 420px;
+  padding: 7px 10px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,.8);
+  transition: box-shadow .3s var(--ease), border-color .3s var(--ease), background .3s var(--ease);
+}
+
+.search-shell:focus-within {
+  border-color: rgba(99, 102, 241, .5);
+  background: rgba(255, 255, 255, .78);
+  box-shadow:
+    0 0 0 3.5px rgba(99, 102, 241, .14),
+    var(--shadow-md),
+    inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+/* Запит є, але нічого не збіглося */
+.search-shell.is-empty {
+  border-color: rgba(244, 63, 94, .45);
+  box-shadow: 0 0 0 3.5px rgba(244, 63, 94, .1), var(--shadow-sm);
+}
+
+.search-icon {
+  flex: none;
+  color: var(--ink-mute);
+  transition: color .3s var(--ease);
+}
+.search-shell:focus-within .search-icon { color: var(--accent); }
+
+#searchInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--ink);
+}
+#searchInput::placeholder { color: var(--ink-mute); }
+
+.search-count {
+  flex: none;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  color: #3730a3;
+  background: rgba(224, 231, 255, .9);
+  animation: fadeInUp .25s var(--spring);
+}
+.search-shell.is-empty .search-count { color: #be123c; background: rgba(255, 228, 230, .9); }
+
+.search-clear {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--ink-mute);
+  background: rgba(148, 163, 184, .18);
+  cursor: pointer;
+  transition: color .2s var(--ease), background .2s var(--ease), transform .25s var(--spring);
+}
+.search-clear:hover { color: var(--ink); background: rgba(148, 163, 184, .32); transform: rotate(90deg); }
+
+/* Підказка гарячої клавіші зникає, щойно поле в роботі */
+.search-kbd {
+  flex: none;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1.5;
+  color: var(--ink-mute);
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, .1);
+  background: rgba(255, 255, 255, .6);
+  transition: opacity .25s var(--ease);
+}
+.search-shell:focus-within .search-kbd,
+.search-shell.is-active .search-kbd { opacity: 0; }
+
+/* Знайдені літери в таблиці */
+.search-hit {
+  padding: 0 1px;
+  border-radius: 4px;
+  color: #3730a3;
+  font-weight: 700;
+  background: linear-gradient(180deg, rgba(253, 230, 138, .85), rgba(252, 211, 77, .7));
+  box-shadow: 0 1px 4px rgba(245, 158, 11, .25);
+}
+
 /* ---------- Шапка постачальника / партії ---------- */
 
 .supplier-head {

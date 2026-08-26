@@ -49,6 +49,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Індикатор автооновлення в шапці
   const autoChip = document.getElementById("autoRefreshChip");
   const autoChipText = document.getElementById("autoRefreshText");
+  // Пошук
+  const searchInput = document.getElementById("searchInput");
+  const searchClear = document.getElementById("searchClear");
+  const searchCount = document.getElementById("searchCount");
+  const searchShell = document.getElementById("searchShell");
   let oneOffTarget = { supplier: null, batch: null, date: null };
   const { jsPDF } = window.jspdf;
   let logoDataPromise = null;
@@ -496,6 +501,73 @@ document.addEventListener("DOMContentLoaded", () => {
     fontReady = false;
   }
 
+  // === Нечіткий пошук ===
+  // Літери запиту мають траплятися в тексті по порядку, але не обов'язково
+  // поруч: "чрн фтб" знайде "Футболка чорна". Рахуємо не лише факт збігу, а і
+  // його якість — збіги впритул і на початку слова цінуємо вище, щоб
+  // найточніші рядки спливали першими.
+  let searchQuery = "";
+  let searchTokens = [];
+
+  const WORD_CHAR = /[a-zа-яїієґё0-9]/i;
+
+  function fuzzyMatch(token, text) {
+    const t = String(text ?? "").toLowerCase();
+    if (!t) return null;
+    const positions = [];
+    let score = 0, cursor = 0, prevIdx = -2;
+    for (const ch of token) {
+      const found = t.indexOf(ch, cursor);
+      if (found === -1) return null;
+      let bonus = 1;
+      if (found === prevIdx + 1) bonus += 6;                       // йде впритул
+      if (found === 0) bonus += 8;                                 // з початку рядка
+      else if (!WORD_CHAR.test(t[found - 1] || "")) bonus += 5;    // з початку слова
+      score += bonus;
+      positions.push(found);
+      prevIdx = found;
+      cursor = found + 1;
+    }
+    return { score: score - positions[0] * 0.15, positions };
+  }
+
+  // Токени об'єднуємо через AND: кожне слово запиту має знайтись хоча б в
+  // одному полі товару. Позиції збігів повертаємо окремо для назви й артикулу —
+  // саме їх підсвічуємо в таблиці.
+  function matchItem(item, supplierName) {
+    if (!searchTokens.length) return { score: 0, name: [], sku: [] };
+    const fields = [item.productName, item.sku, item.orderNumber, supplierName, item.dateOrder];
+    let total = 0;
+    const namePos = [], skuPos = [];
+    for (const token of searchTokens) {
+      let best = null, bestField = -1;
+      fields.forEach((value, i) => {
+        const hit = fuzzyMatch(token, value);
+        if (hit && (!best || hit.score > best.score)) { best = hit; bestField = i; }
+      });
+      if (!best) return null; // жодне поле не має цього слова
+      total += best.score;
+      if (bestField === 0) namePos.push(...best.positions);
+      if (bestField === 1) skuPos.push(...best.positions);
+    }
+    return { score: total, name: namePos, sku: skuPos };
+  }
+
+  // Обгортаємо знайдені літери, не ламаючи решту тексту
+  function highlight(text, positions) {
+    const src = String(text ?? "");
+    if (!positions || !positions.length) return src;
+    const marked = new Set(positions);
+    let out = "", open = false;
+    for (let i = 0; i < src.length; i++) {
+      const hit = marked.has(i);
+      if (hit && !open) { out += `<mark class="search-hit">`; open = true; }
+      if (!hit && open) { out += "</mark>"; open = false; }
+      out += src[i];
+    }
+    return open ? out + "</mark>" : out;
+  }
+
   function renderSuppliers(highlightBatch = null) {
     container.innerHTML = "";
     if (highlightBatch?.animate) {
@@ -514,8 +586,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const stockRemaining = new Map();
     stockMap.forEach((v, k) => stockRemaining.set(k, v.quantity));
 
-    suppliers.forEach((supplier, idx) => {
-      const visibleItems = supplier.items.filter(item => currentView === "ordered" ? item.status === "ordered" : item.status !== "ordered");
+    let shownCount = 0;
+
+    // Спершу оцінюємо всі товари — тоді постачальників можна впорядкувати за
+    // релевантністю ще до рендеру. Рядки, які пошук ховає, знімаємо з вибору:
+    // інакше «Позначити замовлено» потягне те, чого користувач не бачить.
+    suppliers.forEach(s => {
+      let best = -Infinity;
+      s.items.forEach(item => {
+        if (!searchTokens.length) { item._match = null; return; }
+        const hit = matchItem(item, s.name);
+        item._match = hit;
+        if (!hit) item._selected = false;
+        else if (hit.score > best) best = hit.score;
+      });
+      s._searchScore = best;
+    });
+
+    const order = suppliers.map((s, i) => [s, i]);
+    if (searchTokens.length) {
+      order.sort((a, b) => (b[0]._searchScore ?? -Infinity) - (a[0]._searchScore ?? -Infinity));
+    }
+
+    order.forEach(([supplier, idx]) => {
+      const visibleItems = supplier.items.filter(item =>
+        (currentView === "ordered" ? item.status === "ordered" : item.status !== "ordered") &&
+        (!searchTokens.length || item._match)
+      );
+      shownCount += visibleItems.length;
       if (currentView === "ordered") {
         // За замовчуванням відмічено, але можна зняти (перезаписуємо лише undefined)
         visibleItems.forEach(item => { if (item._selected === undefined) item._selected = true; });
@@ -681,7 +779,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         </td>
                         <td>
                           <div class="flex items-center gap-2 group flex-wrap">
-                            <span>${item.productName}</span>
+                            <span>${highlight(item.productName, item._match?.name)}</span>
                             ${(() => {
                               // Уже списано зі складу — показуємо це замість «Є на складі»
                               const taken = getStockTaken(item);
@@ -714,7 +812,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td>${item.quantity}</td>
                         <td>
                           <div class="flex items-center gap-2 group">
-                            <span>${item.sku}</span>
+                            <span>${highlight(item.sku, item._match?.sku)}</span>
                             <button class="copy-btn" data-copy="${item.sku}" title="Копіювати артикул">
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4 fill-current">
                                 <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Z M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h12v14Z"/>
@@ -761,6 +859,13 @@ document.addEventListener("DOMContentLoaded", () => {
       section.innerHTML = html;
       container.appendChild(section);
     });
+
+    if (searchTokens.length && shownCount === 0) {
+      container.innerHTML = `<div class="empty-state rise-in">
+        Нічого не знайшлося за запитом «${searchQuery}».
+      </div>`;
+    }
+    updateSearchCount(shownCount);
 
     document.querySelectorAll(".print-btn").forEach(btn =>
       btn.addEventListener("click", (e) => {
@@ -1657,6 +1762,48 @@ document.addEventListener("DOMContentLoaded", () => {
     } finally {
       btn.disabled = false;
       btn.innerHTML = prev;
+    }
+  });
+
+  // === Поле пошуку ===
+  function updateSearchCount(shown) {
+    if (!searchCount) return;
+    searchCount.textContent = searchTokens.length ? `${shown}` : "";
+    searchCount.classList.toggle("hidden", !searchTokens.length);
+    searchShell?.classList.toggle("is-empty", searchTokens.length > 0 && shown === 0);
+  }
+
+  function applySearch(value) {
+    searchQuery = value.trim();
+    searchTokens = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    searchClear?.classList.toggle("hidden", !searchQuery);
+    searchShell?.classList.toggle("is-active", !!searchQuery);
+    renderSuppliers();
+  }
+
+  let searchTimer = null;
+  searchInput?.addEventListener("input", (e) => {
+    const value = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => applySearch(value), 120);
+  });
+
+  searchClear?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    applySearch("");
+    searchInput?.focus();
+  });
+
+  // «/» — стрибок у пошук, Esc — очистити
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "/" && document.activeElement !== searchInput && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
+      e.preventDefault();
+      searchInput?.focus();
+      searchInput?.select();
+    } else if (e.key === "Escape" && document.activeElement === searchInput) {
+      if (searchInput) searchInput.value = "";
+      applySearch("");
+      searchInput?.blur();
     }
   });
 
