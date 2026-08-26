@@ -445,6 +445,16 @@ body::after {
 }
 .search-shell:focus-within .search-icon { color: var(--accent); }
 
+/* Набір ще триває — лупа підказує, що результат от-от оновиться */
+.search-shell.is-pending .search-icon {
+  color: var(--accent);
+  animation: searchPending .7s var(--ease) infinite;
+}
+@keyframes searchPending {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: .45; transform: scale(.9); }
+}
+
 #searchInput {
   flex: 1 1 auto;
   min-width: 0;

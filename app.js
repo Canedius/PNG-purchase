@@ -1774,18 +1774,36 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function applySearch(value) {
+    clearTimeout(searchTimer);
     searchQuery = value.trim();
     searchTokens = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
     searchClear?.classList.toggle("hidden", !searchQuery);
     searchShell?.classList.toggle("is-active", !!searchQuery);
+    searchShell?.classList.remove("is-pending");
     renderSuppliers();
   }
 
+  // Кожен рендер перемальовує всю таблицю, тож не женемось за кожною літерою:
+  // чекаємо паузу в наборі. Очищення й Enter застосовуємо миттєво — там
+  // користувач уже знає, чого хоче, і затримка тільки дратує.
+  const SEARCH_DEBOUNCE_MS = 250;
   let searchTimer = null;
+
+  function scheduleSearch(value, delay = SEARCH_DEBOUNCE_MS) {
+    clearTimeout(searchTimer);
+    if (value.trim() === searchQuery) return; // нормалізований запит той самий — рендер нічого не змінить
+    searchShell?.classList.add("is-pending");
+    if (!delay) return applySearch(value);
+    searchTimer = setTimeout(() => applySearch(value), delay);
+  }
+
   searchInput?.addEventListener("input", (e) => {
     const value = e.target.value;
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => applySearch(value), 120);
+    scheduleSearch(value, value.trim() ? SEARCH_DEBOUNCE_MS : 0);
+  });
+
+  searchInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") scheduleSearch(e.currentTarget.value, 0);
   });
 
   searchClear?.addEventListener("click", () => {
