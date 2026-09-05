@@ -2175,25 +2175,25 @@ document.addEventListener("DOMContentLoaded", () => {
       <table class="glass-table">
         <thead>
           <tr>
+            <th class="w-20 text-center">Замовлень</th>
             <th class="w-14">Фото</th>
             <th>Назва товару</th>
             <th>Артикул</th>
             <th>Постачальник</th>
             <th class="w-20 text-center">Розмір</th>
             <th class="w-24 text-center">Кількість</th>
-            <th class="w-20 text-center">Замовлень</th>
           </tr>
         </thead>
         <tbody>
           ${rows.map(r => `
             <tr>
+              <td class="text-center text-slate-500" title="Замовлення: ${[...r.orders].join(", ")}">${r.orders.size}</td>
               <td>${r.photo ? photoImgTag(r.photo, "thumb-img") : emptyThumb}</td>
               <td class="text-slate-700">${r.name || "<span class='text-slate-300'>—</span>"}</td>
               <td class="font-semibold text-slate-800">${r.sku || "<span class='text-slate-300'>—</span>"}</td>
               <td class="text-slate-500 text-[12px]">${[...r.suppliers].join(", ")}</td>
               <td class="text-center font-bold text-slate-900">${r.size || "<span class='text-slate-300 font-normal'>—</span>"}</td>
               <td class="text-center"><span class="badge badge-indigo">${r.quantity} шт</span></td>
-              <td class="text-center text-slate-500" title="Замовлення: ${[...r.orders].join(", ")}">${r.orders.size}</td>
             </tr>`).join("")}
         </tbody>
       </table>
