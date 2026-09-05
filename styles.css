@@ -600,6 +600,7 @@ body::after {
 .badge-emerald { color: #047857; background: rgba(209, 250, 229, .8); border-color: rgba(16,185,129,.28); }
 .badge-amber   { color: #92400e; background: rgba(254, 243, 199, .8); border-color: rgba(245,158,11,.3); }
 .badge-indigo  { color: #3730a3; background: rgba(224, 231, 255, .8); border-color: rgba(99,102,241,.28); }
+.badge-slate   { color: #64748b; background: rgba(241, 245, 249, .9); border-color: rgba(100,116,139,.22); }
 
 /* ---------- Таблиця ---------- */
 

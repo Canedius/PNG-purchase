@@ -81,6 +81,7 @@
 
     <!-- Вкладки + пошук -->
     <div class="flex items-center justify-between gap-3 flex-wrap rise-in" style="animation-delay:.15s">
+    <div class="flex items-center gap-2 flex-wrap">
     <div id="tabsBar" class="tabs-bar">
       <button id="tabAll" class="tab-btn">
         <svg id="flameIcon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400">
@@ -94,6 +95,13 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/>
         </svg>
         <span>Замовлено</span>
+      </button>
+    </div>
+      <button id="summaryBtn" class="gbtn gbtn-accent hidden" title="Звести однакові позиції в один список">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 4H6l7 8-7 8h12"/>
+        </svg>
+        Підсумувати
       </button>
     </div>
 
@@ -225,6 +233,21 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260826e" defer></script>
+  <!-- Modal: підсумок однакових позицій -->
+  <div id="summaryModal" class="modal-backdrop hidden">
+    <div class="modal-panel max-w-3xl max-h-[90vh] flex flex-col">
+      <button id="summaryClose" class="modal-close" aria-label="Закрити">&times;</button>
+      <h3 class="modal-title">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 4H6l7 8-7 8h12"/>
+        </svg>
+        Підсумок позицій
+      </h3>
+      <p id="summarySub" class="modal-sub mb-4">Однакові товари зведені в один рядок із загальною кількістю.</p>
+      <div id="summaryList" class="overflow-y-auto scroll-slim -mx-1 px-1 grow"></div>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260905b" defer></script>
 </body>
 </html>

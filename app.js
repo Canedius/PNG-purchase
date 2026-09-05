@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const deleteUrl = "https://primary-production-eeb3.up.railway.app/webhook/9befdb41-a9e6-48bb-9e9d-b662a45719b5"; // видалення ОДНОГО рядка по ?id=<row.id> (Webhook1 -> Delete row(s))
   const stockListUrl = "https://primary-production-eeb3.up.railway.app/webhook/b345a2cb-c38e-473f-a2cb-984179c2a16d"; // GET список залишків
   const stockSaveUrl = "https://primary-production-eeb3.up.railway.app/webhook/083515fd-b0b5-4176-b3e8-47f41f9d0e14"; // POST upsert/delete залишку
+  const stockTakenSaveUrl = "https://primary-production-eeb3.up.railway.app/webhook/e73ac8d7-1d06-44fd-8df7-f7be8b64f412"; // POST [{id, stock_taken}] — скільки взято зі складу
   const orderLinkBase = "https://pngstudio.keycrm.app/app/orders/view/";
   const imgbbKey = "94bdaee3905112e98422049edbc5347f"; // ключ imgbb для аплоуду фото
 
@@ -254,10 +255,16 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   const itemStockKey = (item) =>
     item?.id != null && item.id !== "" ? `id:${item.id}` : `ord:${item?.orderNumber}|${normalizeSku(item?.sku)}`;
-  const getStockTaken = (item) => Number(stockTaken[itemStockKey(item)]) || 0;
+  // Значення з бекенду (колонка stock_taken) головніше за локальне —
+  // воно спільне для всіх машин, localStorage лишається запасним варіантом.
+  const getStockTaken = (item) => {
+    const fromServer = Number(item?.raw?.stock_taken ?? item?.stockTaken);
+    if (Number.isFinite(fromServer) && fromServer > 0) return fromServer;
+    return Number(stockTaken[itemStockKey(item)]) || 0;
+  };
   // Розподіляємо списану кількість по рядках того ж артикулу (по порядку)
   function rememberStockTaken(items, usage) {
-    let changed = false;
+    const changes = []; // [{ id, stock_taken }] — те саме поїде на бекенд
     (usage || []).forEach(u => {
       let left = Number(u.use) || 0;
       const key = normalizeSku(u.stock.sku);
@@ -267,11 +274,52 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!Number.isFinite(need) || need <= 0) need = 1;
         const alloc = Math.min(need, left);
         left -= alloc;
-        stockTaken[itemStockKey(it)] = (Number(stockTaken[itemStockKey(it)]) || 0) + alloc;
-        changed = true;
+        const total = (Number(stockTaken[itemStockKey(it)]) || 0) + alloc;
+        stockTaken[itemStockKey(it)] = total;
+        if (it.raw) it.raw.stock_taken = total; // щоб плашка зʼявилась без перезавантаження
+        if (it.id != null && it.id !== "") changes.push({ id: it.id, stock_taken: total });
       });
     });
-    if (changed) saveStockTaken();
+    if (changes.length) saveStockTaken();
+    return changes;
+  }
+
+  // Пишемо «взято зі складу» в колонку stock_taken таблиці «Закупівлі»,
+  // щоб позначка була спільною для всіх машин, а не лише в цьому браузері.
+  async function pushStockTaken(changes) {
+    if (!changes || !changes.length) return;
+    const resp = await fetch(stockTakenSaveUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes)
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  }
+
+  // Сирі рядки обох вкладок поточного бренду — потрібні, щоб резервування складу
+  // рахувалось по всіх замовленнях, а не лише по видимих зараз.
+  let allBrandRows = [];
+  // Ключ рядка -> скільки штук цього рядка покриває склад.
+  // Штуки роздаємо в порядку створення рядків: хто раніше замовив, той і бере зі складу.
+  function computeStockAlloc() {
+    const alloc = new Map();
+    const remaining = new Map();
+    stockMap.forEach((v, k) => remaining.set(k, v.quantity));
+    const rows = [...allBrandRows].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+    rows.forEach(row => {
+      const ref = { id: row.id ?? null, orderNumber: String(row.OrderID), sku: row.SKU || "", stockTaken: row.stock_taken };
+      if (getStockTaken(ref) > 0) return; // вже списано зі складу — склад під нього не резервуємо
+      const key = normalizeSku(row.SKU);
+      const rem = remaining.get(key);
+      if (!rem || rem <= 0) return;
+      let need = Number(row.Quantity);
+      if (!Number.isFinite(need) || need <= 0) need = 1;
+      const take = Math.min(need, rem);
+      if (take <= 0) return;
+      alloc.set(itemStockKey(ref), take);
+      remaining.set(key, rem - take);
+    });
+    return alloc;
   }
   // Запам'ятовуємо фото з сирих рядків бекенду; повертає true, якщо щось змінилось
   function rememberSkuPhotos(rows) {
@@ -581,10 +629,9 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Розподіл залишків: лічильник «скільки ще доступно» по кожному артикулу.
-    // Зменшується по рядках у порядку показу, щоб сумарно бейджі не перевищували склад.
-    const stockRemaining = new Map();
-    stockMap.forEach((v, k) => stockRemaining.set(k, v.quantity));
+    // Розподіл залишків рахуємо ГЛОБАЛЬНО — по рядках обох вкладок разом.
+    // Інакше та сама штука зі складу показувалась би вільною і в «Поточні», і в «Замовлено».
+    const stockAlloc = computeStockAlloc();
 
     let shownCount = 0;
 
@@ -790,13 +837,16 @@ document.addEventListener("DOMContentLoaded", () => {
                                    </span>`;
                               }
                               const key = normalizeSku(item.sku);
-                              const rem = stockRemaining.get(key);
-                              if (rem === undefined || rem <= 0) return "";
-                              let need = Number(item.quantity);
-                              if (!Number.isFinite(need) || need <= 0) need = 1;
-                              const alloc = Math.min(need, rem);
-                              if (alloc <= 0) return "";
-                              stockRemaining.set(key, rem - alloc); // резервуємо під цей рядок
+                              const total = stockMap.get(key)?.quantity || 0;
+                              if (total <= 0) return ""; // артикулу на складі немає взагалі
+                              const alloc = stockAlloc.get(itemStockKey(item)) || 0;
+                              if (alloc <= 0) {
+                                // Склад є, але його вже розібрали інші рядки з цим артикулом
+                                return `<span class="badge badge-slate" title="На складі всього ${total} шт цього артикулу — їх уже позначено під іншими замовленнями. На цей рядок складу не вистачає.">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+                                    Склад зайнято (${total} шт)
+                                   </span>`;
+                              }
                               return `<span class="badge badge-emerald" title="Артикул є на складі">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                                     Є на складі: ${alloc} шт
@@ -929,7 +979,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 await setStockQuantity(u.stock, u.stock.quantity - u.use);
               }
               // Лишаємо слід, що ці рядки беруться зі складу
-              rememberStockTaken(changedItems, decision.usage);
+              const takenChanges = rememberStockTaken(changedItems, decision.usage);
+              // Бекенд не критичний: якщо не записалось, лишається локальна позначка
+              await pushStockTaken(takenChanges).catch(e =>
+                console.warn("Не вдалося записати «взято зі складу» на бекенд", e));
             } catch (err) {
               alert(`Не вдалося списати зі складу: ${err.message}. Перенесення скасовано.`);
               return renderSuppliers();
@@ -1387,6 +1440,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     try {
       const statusParam = currentView === "ordered" ? "ordered" : "to_buy";
+      const otherParam = currentView === "ordered" ? "to_buy" : "ordered";
       // Залишки тягнемо паралельно (лише для PNG druk), щоб бейджі були готові до рендеру
       const stockPromise = currentBrand === "png_druk" ? loadStock() : Promise.resolve(stockMap.clear());
       const resp = await fetch(`${dataUrl}?status=${encodeURIComponent(statusParam)}`);
@@ -1403,16 +1457,23 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         rows = [];
       }
+      const allowed = BRAND_TAGS[currentBrand] || new Set();
+      const keepRow = (r) => r &&
+        (r.OrderID != null && r.OrderID !== "") &&
+        (r.SKU || r.ProductName) &&
+        allowed.has(r.company_tag);
       if (Array.isArray(rows)) {
-        const allowed = BRAND_TAGS[currentBrand] || new Set();
-        rows = rows.filter(r =>
-          r &&
-          (r.OrderID != null && r.OrderID !== "") &&
-          (r.SKU || r.ProductName) &&
-          allowed.has(r.company_tag)
-        );
+        rows = rows.filter(keepRow);
         rememberSkuPhotos(rows);
       }
+      // Друга вкладка потрібна лише для розподілу складу — падіння запиту не критичне
+      const otherRows = await fetch(`${dataUrl}?status=${encodeURIComponent(otherParam)}`)
+        .then(r => (r.ok ? r.json() : []))
+        .then(list => (Array.isArray(list) ? list.filter(keepRow) : []))
+        .catch(() => []);
+      if (seq !== loadSeq) return;
+      rememberSkuPhotos(otherRows);
+      allBrandRows = [...(Array.isArray(rows) ? rows : []), ...otherRows];
       if (!Array.isArray(rows) || rows.length === 0) {
         const msg = currentView === "ordered"
           ? "Замовлених товарів поки немає."
@@ -1529,6 +1590,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("clockIcon")?.classList.add("clock-active","text-amber-500");
       document.getElementById("clockIcon")?.classList.remove("text-slate-400");
     }
+    updateSummaryBtn();
     loadData();
   }
 
@@ -1549,6 +1611,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (addSupplierBtn) addSupplierBtn.classList.toggle("hidden", brand !== "png_druk");
     const stockBtnEl = document.getElementById("stockBtn");
     if (stockBtnEl) stockBtnEl.classList.toggle("hidden", brand !== "png_druk");
+    updateSummaryBtn();
     if (load) loadData();
   }
   brandPngDruk?.addEventListener("click", () => setBrand("png_druk"));
@@ -2040,6 +2103,123 @@ document.addEventListener("DOMContentLoaded", () => {
   if (stSku) stSku.addEventListener("keydown", (e) => { if (e.key === "Enter") saveStock(); });
   if (stQty) stQty.addEventListener("keydown", (e) => { if (e.key === "Enter") saveStock(); });
   if (stockModal) stockModal.addEventListener("click", (e) => { if (e.target === stockModal) closeStockModal(); });
+
+  // === Модалка «Підсумувати»: однакові позиції одним рядком ===
+  const summaryBtn = document.getElementById("summaryBtn");
+  const summaryModal = document.getElementById("summaryModal");
+  const summaryClose = document.getElementById("summaryClose");
+  const summaryList = document.getElementById("summaryList");
+  const summarySub = document.getElementById("summarySub");
+
+  // Підсумок потрібен лише там, де формується закупівля: PNG druk + «Поточні»
+  function updateSummaryBtn() {
+    if (!summaryBtn) return;
+    const show = currentBrand === "png_druk" && currentView === "new";
+    summaryBtn.classList.toggle("hidden", !show);
+    if (!show) closeSummaryModal();
+  }
+
+  // Розмір живе всередині назви: «... (Колір: Deep Black, Розмір: M)»
+  const extractSize = (name) => {
+    const m = String(name || "").match(/(?:Розмір|Розм\.|Size)\s*[:：]\s*([^,)]+)/i);
+    return m ? m[1].trim() : "";
+  };
+
+  // Групуємо за артикулом; якщо його немає — за назвою, щоб різне не злилось
+  function buildSummary() {
+    const groups = new Map();
+    suppliers.forEach(supplier => {
+      supplier.items.forEach(item => {
+        if (item.status === "ordered") return;
+        if (searchTokens.length && !item._match) return; // рахуємо те, що видно
+        const sku = normalizeSku(item.sku);
+        const name = String(item.productName || "").trim();
+        const key = sku || (name ? "name:" + name.toLowerCase() : "");
+        if (!key) return;
+        let g = groups.get(key);
+        if (!g) {
+          g = { sku: item.sku || "", name, size: extractSize(name), photo: null, quantity: 0, orders: new Set(), suppliers: new Set() };
+          groups.set(key, g);
+        }
+        g.quantity += Number(item.quantity) || 0;
+        if (!g.name && name) g.name = name;
+        if (!g.size) g.size = extractSize(name);
+        if (!g.photo) g.photo = item.photo || getSkuPhoto(item.sku) || null;
+        if (item.orderNumber) g.orders.add(item.orderNumber);
+        if (supplier.name) g.suppliers.add(supplier.name);
+      });
+    });
+    return [...groups.values()].sort((a, b) =>
+      b.quantity - a.quantity || a.name.localeCompare(b.name, "uk"));
+  }
+
+  function renderSummary() {
+    if (!summaryList) return;
+    const rows = buildSummary();
+    if (summarySub) {
+      summarySub.textContent = searchTokens.length
+        ? "Однакові товари зведені в один рядок. Враховано лише те, що показує пошук."
+        : "Однакові товари зведені в один рядок із загальною кількістю по всіх замовленнях.";
+    }
+    if (rows.length === 0) {
+      summaryList.innerHTML = `<div class="text-sm text-slate-400 text-center py-6">Немає позицій для підсумку.</div>`;
+      return;
+    }
+    const totalQty = rows.reduce((sum, r) => sum + r.quantity, 0);
+    const emptyThumb = `<div class="thumb-img thumb-empty" title="Фото не знайдено">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+        </svg>
+      </div>`;
+    summaryList.innerHTML = `
+      <table class="glass-table">
+        <thead>
+          <tr>
+            <th class="w-14">Фото</th>
+            <th>Назва товару</th>
+            <th>Артикул</th>
+            <th>Постачальник</th>
+            <th class="w-20 text-center">Розмір</th>
+            <th class="w-24 text-center">Кількість</th>
+            <th class="w-20 text-center">Замовлень</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${r.photo ? photoImgTag(r.photo, "thumb-img") : emptyThumb}</td>
+              <td class="text-slate-700">${r.name || "<span class='text-slate-300'>—</span>"}</td>
+              <td class="font-semibold text-slate-800">${r.sku || "<span class='text-slate-300'>—</span>"}</td>
+              <td class="text-slate-500 text-[12px]">${[...r.suppliers].join(", ")}</td>
+              <td class="text-center font-bold text-slate-900">${r.size || "<span class='text-slate-300 font-normal'>—</span>"}</td>
+              <td class="text-center"><span class="badge badge-indigo">${r.quantity} шт</span></td>
+              <td class="text-center text-slate-500" title="Замовлення: ${[...r.orders].join(", ")}">${r.orders.size}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+      <div class="flex items-center justify-between gap-3 mt-3 px-1 text-[12px] text-slate-500">
+        <span>Унікальних позицій: <b class="text-slate-700">${rows.length}</b></span>
+        <span>Загалом: <b class="text-slate-700">${totalQty} шт</b></span>
+      </div>`;
+    attachPreviewHandlers(summaryList);
+    hydratePhotos(summaryList);
+  }
+
+  function openSummaryModal() {
+    if (!summaryModal) return;
+    renderSummary();
+    summaryModal.classList.remove("hidden");
+  }
+  function closeSummaryModal() {
+    if (summaryModal) summaryModal.classList.add("hidden");
+  }
+
+  if (summaryBtn) summaryBtn.addEventListener("click", openSummaryModal);
+  if (summaryClose) summaryClose.addEventListener("click", closeSummaryModal);
+  if (summaryModal) summaryModal.addEventListener("click", (e) => { if (e.target === summaryModal) closeSummaryModal(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && summaryModal && !summaryModal.classList.contains("hidden")) closeSummaryModal();
+  });
 
   // Завантажуємо дані й стартуємо (запам'ятовуємо останній бренд і вкладку)
   let initialBrand = "png_druk";
