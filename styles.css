@@ -988,16 +988,6 @@ body::after {
 .rcp-tile.is-amber b { color: #d97706; }
 .rcp-tile.is-red b { color: #e11d48; }
 
-/* Результат останнього скану — читається з двох метрів */
-.rcp-scan { border-radius: var(--r-lg); padding: 16px 20px; color: #fff; box-shadow: var(--shadow-md); }
-.rcp-scan-text { font-size: clamp(22px, 4vw, 38px); font-weight: 800; letter-spacing: .01em; line-height: 1.15; }
-.rcp-scan-meta { font-size: 13px; opacity: .85; margin-top: 4px; }
-.rcp-scan.is-ok  { background: linear-gradient(135deg, #059669, #10b981); }
-.rcp-scan.is-dup { background: linear-gradient(135deg, #475569, #64748b); }
-.rcp-scan.is-bad { background: linear-gradient(135deg, #be123c, #f43f5e); }
-.rcp-scan.is-flash { animation: rcpFlash .9s var(--ease); }
-@keyframes rcpFlash { 0% { transform: scale(1.03); filter: brightness(1.25); } 100% { transform: none; filter: none; } }
-
 .rcp-group { padding: 10px 14px 6px; }
 .rcp-group h3 { font-size: 14px; font-weight: 700; color: var(--ink); margin: 2px 0 6px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .rcp-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
@@ -1040,7 +1030,6 @@ button.rcp-tile.is-active { border-color: var(--accent); box-shadow: 0 0 0 3px r
 /* клік по ТТН копіює повний номер */
 .rcp-copy { cursor: copy; position: relative; border-radius: 6px; transition: background .15s var(--ease); }
 .rcp-copy:hover { background: rgba(99, 102, 241, .1); }
-.rcp-scan .rcp-copy:hover { background: rgba(255, 255, 255, .18); }
 .rcp-copy.is-copied::after { content: "скопійовано"; position: absolute; left: 0; top: 100%; margin-top: 2px; z-index: 5;
   font-size: 11px; font-weight: 600; letter-spacing: 0; white-space: nowrap; padding: 2px 6px; border-radius: 6px;
   background: #059669; color: #fff; text-decoration: none; }

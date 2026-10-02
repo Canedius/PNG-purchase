@@ -35,7 +35,6 @@
   let query = "";
   let timer = null;
   let visible = false;
-  let lastScanKey = "";
   let busy = false;
   let filter = null; // клік по лічильнику: accepted | waiting | transit | issued | npday
   // Місто отримувача за накладною; при відкритті завжди Львів. Невідоме місто — теж Львів, щоб нічого не загубилось
@@ -61,7 +60,6 @@
       </div>
     </div>
     <div class="rcp-counters"></div>
-    <div class="rcp-last"></div>
     <div class="rcp-list"></div>`;
 
   const $ = (sel) => panel.querySelector(sel);
@@ -129,22 +127,6 @@
       tile("accepted", n("accepted"), "Прийнято складом") +
       tile("onway", n("onway"), "У дорозі до нас", "", atBranch ? `з них у відділенні ${atBranch}` : "") +
       tile("issued", issued, "Не відскановані", issued ? "has-alert" : "");
-  }
-
-  function renderLastScan(s, flash) {
-    const el = $(".rcp-last");
-    if (!s) { el.innerHTML = ""; return; }
-    const tail = `…${esc(String(s.ttn).slice(-4))}`;
-    const who = esc(s.alias_name || s.sender || "");
-    const order = s.order_id ? ` → ${esc(s.order_id)}` : "";
-    let cls, text;
-    if (s.result === "unknown") { cls = "is-bad"; text = `✗ НЕМАЄ В СПИСКУ ${tail}`; }
-    else if (s.result === "duplicate") { cls = "is-dup"; text = `↻ ВЖЕ ПРИЙНЯТО ${tail} ${who}${order}`; }
-    else { cls = "is-ok"; text = `✓ ПРИЙНЯТО ${tail} ${who}${order}`; }
-    el.innerHTML = `<div class="rcp-scan ${cls} ${flash ? "is-flash" : ""}">
-        <div class="rcp-scan-text">${text}</div>
-        <div class="rcp-scan-meta">${esc(hhmm(s.scanned_at))}${s.scanned_by ? " · " + esc(s.scanned_by) : ""} · <span class="rcp-copy" data-copy="${esc(s.ttn)}" title="Скопіювати ТТН">${esc(s.ttn)}</span></div>
-      </div>`;
   }
 
   function rowHtml(r) {
@@ -237,10 +219,6 @@
     renderCity();
     const rows = cityRows();
     renderCounters(rows);
-    const s = data.last_scan;
-    const key = s ? `${s.ttn}|${s.scanned_at}` : "";
-    renderLastScan(s, key && lastScanKey && key !== lastScanKey);
-    lastScanKey = key;
     renderList(rows);
   }
 
@@ -292,7 +270,6 @@
   function setDay(d) {
     day = d;
     data = null;
-    lastScanKey = "";
     render();
     load();
   }
