@@ -36,7 +36,10 @@
   let timer = null;
   let visible = false;
   let busy = false;
-  let filter = null; // клік по лічильнику: accepted | waiting | transit | issued | npday
+  // Клік по лічильнику: npday | accepted | onway | issued; null — увесь реєстр.
+  // При переході на вкладку одразу відкрито «Віддано Новою Поштою»
+  const DEFAULT_FILTER = "npday";
+  let filter = DEFAULT_FILTER;
   // Місто отримувача за накладною; при відкритті завжди Львів. Невідоме місто — теж Львів, щоб нічого не загубилось
   let city = "Львів";
   const cityOf = (r) => r.recipient_city === "Київ" ? "Київ" : "Львів";
@@ -321,6 +324,7 @@
 
   window.ReceiptTab = {
     show() {
+      filter = DEFAULT_FILTER;
       visible = true;
       panel.classList.remove("hidden");
       if (day !== kyivDay() && !data) day = kyivDay();
