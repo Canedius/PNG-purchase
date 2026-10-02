@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const pageLogo = document.getElementById("pageLogo");
   const tabAll = document.getElementById("tabAll");
   const tabOrdered = document.getElementById("tabOrdered");
+  const tabReceipt = document.getElementById("tabReceipt");
   const tabsBar = document.getElementById("tabsBar");
   const brandPngDruk = document.getElementById("brandPngDruk");
   const brandPngStudio = document.getElementById("brandPngStudio");
@@ -58,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let oneOffTarget = { supplier: null, batch: null, date: null };
   const { jsPDF } = window.jspdf;
   let logoDataPromise = null;
-  let currentView = "new"; // new | ordered
+  let currentView = "new"; // new | ordered | receipt
   let currentBrand = "png_druk"; // png_druk | png_studio
   const BRAND_TAGS = {
     png_druk: new Set(["PNG druk Львів", "PNG druk Київ", "PNG druk"]),
@@ -1573,6 +1574,26 @@ document.addEventListener("DOMContentLoaded", () => {
       // Модалка відкривається лише по кнопці, але прихована за замовчуванням
       oneOffModal.classList.add("hidden");
     }
+    // «Прийом» — окрема вкладка зі своїми даними (receipt.js), закупівлі на цей час ховаємо
+    const isReceipt = view === "receipt";
+    tabReceipt?.classList.toggle("is-active", isReceipt);
+    document.getElementById("boxIcon")?.classList.toggle("text-emerald-500", isReceipt);
+    document.getElementById("boxIcon")?.classList.toggle("text-slate-400", !isReceipt);
+    container.classList.toggle("hidden", isReceipt);
+    searchShell?.classList.toggle("hidden", isReceipt);
+    autoChip?.classList.toggle("hidden", isReceipt);
+    if (isReceipt) {
+      tabAll.className = "tab-btn";
+      tabOrdered.className = "tab-btn";
+      document.getElementById("flameIcon")?.classList.remove("flame-active", "text-rose-500");
+      document.getElementById("flameIcon")?.classList.add("text-slate-400");
+      document.getElementById("clockIcon")?.classList.remove("clock-active", "text-amber-500");
+      document.getElementById("clockIcon")?.classList.add("text-slate-400");
+      updateSummaryBtn();
+      window.ReceiptTab?.show();
+      return;
+    }
+    window.ReceiptTab?.hide();
     if (view === "new") {
       tabAll.className = "tab-btn is-active";
       tabOrdered.className = "tab-btn";
@@ -1596,6 +1617,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   tabAll.addEventListener("click", () => setTabState("new"));
   tabOrdered.addEventListener("click", () => setTabState("ordered"));
+  tabReceipt?.addEventListener("click", () => setTabState("receipt"));
 
   function setBrand(brand, { load = true } = {}) {
     if (!BRAND_TAGS[brand]) return;
@@ -1917,6 +1939,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function autoRefresh() {
+    if (currentView === "receipt") return; // «Прийом» оновлюється сам (receipt.js)
     if (document.hidden || autoRefreshBlocked()) return updateAutoChip();
     autoChip?.classList.add("is-syncing");
     try {
@@ -2230,8 +2253,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let initialView = "new";
   try {
     const saved = localStorage.getItem("tabView");
-    if (saved === "ordered" || saved === "new") initialView = saved;
+    if (saved === "ordered" || saved === "new" || saved === "receipt") initialView = saved;
   } catch (e) {}
+  // ?tab=receipt — закладка на ПК складівника відкривається одразу на «Прийом»
+  const tabParam = new URLSearchParams(location.search).get("tab");
+  if (["new", "ordered", "receipt"].includes(tabParam)) initialView = tabParam;
   setBrand(initialBrand, { load: false }); // виставляємо бренд без зайвого завантаження
   setTabState(initialView);                // встановлює вкладку і вантажить дані один раз
   prunePhotoCache();                       // прибираємо фото, яких не торкались 90 днів

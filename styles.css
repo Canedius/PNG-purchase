@@ -970,3 +970,100 @@ body::after {
     transition-duration: .01ms;
   }
 }
+
+/* ===== Вкладка «Прийом» (receipt.js) ===== */
+.rcp { display: flex; flex-direction: column; gap: 12px; }
+.rcp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; }
+.rcp-day { display: flex; align-items: center; gap: 6px; }
+.rcp-day .gbtn-icon { width: 34px; height: 34px; justify-content: center; font-size: 20px; line-height: 1; }
+.rcp-day .gbtn-icon:disabled { opacity: .35; cursor: default; }
+.rcp-day-label { min-width: 170px; text-align: center; font-weight: 700; font-size: 16px; color: var(--ink); }
+.rcp-search { flex: 1 1 320px; max-width: 460px; }
+
+.rcp-counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.rcp-tile { padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.rcp-tile b { font-size: 26px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.rcp-tile span { font-size: 12px; color: var(--ink-soft); }
+.rcp-tile.is-green b { color: #059669; }
+.rcp-tile.is-amber b { color: #d97706; }
+.rcp-tile.is-red b { color: #e11d48; }
+
+/* Результат останнього скану — читається з двох метрів */
+.rcp-scan { border-radius: var(--r-lg); padding: 16px 20px; color: #fff; box-shadow: var(--shadow-md); }
+.rcp-scan-text { font-size: clamp(22px, 4vw, 38px); font-weight: 800; letter-spacing: .01em; line-height: 1.15; }
+.rcp-scan-meta { font-size: 13px; opacity: .85; margin-top: 4px; }
+.rcp-scan.is-ok  { background: linear-gradient(135deg, #059669, #10b981); }
+.rcp-scan.is-dup { background: linear-gradient(135deg, #475569, #64748b); }
+.rcp-scan.is-bad { background: linear-gradient(135deg, #be123c, #f43f5e); }
+.rcp-scan.is-flash { animation: rcpFlash .9s var(--ease); }
+@keyframes rcpFlash { 0% { transform: scale(1.03); filter: brightness(1.25); } 100% { transform: none; filter: none; } }
+
+.rcp-group { padding: 10px 14px 6px; }
+.rcp-group h3 { font-size: 14px; font-weight: 700; color: var(--ink); margin: 2px 0 6px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.rcp-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+           padding: 8px 4px; border-top: 1px solid var(--glass-edge); }
+.rcp-ttn { font-size: 22px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.rcp-main { min-width: 0; }
+.rcp-who { font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rcp-meta { font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rcp-mute { color: var(--ink-mute); font-weight: 400; font-size: 12px; }
+.rcp-order { font-weight: 700; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.rcp-order:hover { text-decoration: underline; }
+.rcp-cat { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: rgba(99, 102, 241, .1); color: #4f46e5; white-space: nowrap; }
+.rcp-state { text-align: right; white-space: nowrap; }
+.rcp-badge { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: rgba(100, 116, 139, .12); color: #475569; }
+.rcp-badge.is-mute  { color: var(--ink-mute); background: rgba(148, 163, 184, .12); font-weight: 500; }
+.rcp-badge.is-amber { background: rgba(245, 158, 11, .16); color: #b45309; }
+.rcp-badge.is-red   { background: rgba(244, 63, 94, .14); color: #be123c; }
+.rcp-done { font-size: 13px; font-weight: 600; color: #059669; }
+.rcp-row.is-accepted .rcp-ttn,
+.rcp-row.is-accepted .rcp-who { text-decoration: line-through; text-decoration-color: rgba(5, 150, 105, .6); color: var(--ink-mute); }
+.rcp-row.is-accepted .rcp-meta { color: var(--ink-mute); }
+.rcp-row.is-issued { background: rgba(244, 63, 94, .05); }
+.rcp-empty { padding: 28px; text-align: center; color: var(--ink-mute); font-size: 14px; }
+.rcp-empty.is-error { color: #be123c; }
+
+@media (max-width: 640px) {
+  .rcp-row { grid-template-columns: 52px minmax(0, 1fr); }
+  .rcp-target, .rcp-state { grid-column: 2; text-align: left; }
+  .rcp-ttn { font-size: 18px; }
+  .rcp-day-label { min-width: 0; }
+}
+/* лічильники «Прийому» — клікабельні фільтри */
+button.rcp-tile { text-align: left; cursor: pointer; border: 1px solid transparent; font: inherit; }
+button.rcp-tile:hover { border-color: rgba(99, 102, 241, .25); }
+button.rcp-tile.is-active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99, 102, 241, .15), var(--shadow-sm); }
+.rcp-tile em { font-style: normal; font-weight: 700; color: #be123c; }
+.rcp-np { display: block; font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+.rcp-np.is-ok { color: #64748b; }
+.rcp-group.is-alert { box-shadow: 0 0 0 2px rgba(244, 63, 94, .35), var(--shadow-sm); }
+/* клік по ТТН копіює повний номер */
+.rcp-copy { cursor: copy; position: relative; border-radius: 6px; transition: background .15s var(--ease); }
+.rcp-copy:hover { background: rgba(99, 102, 241, .1); }
+.rcp-scan .rcp-copy:hover { background: rgba(255, 255, 255, .18); }
+.rcp-copy.is-copied::after { content: "скопійовано"; position: absolute; left: 0; top: 100%; margin-top: 2px; z-index: 5;
+  font-size: 11px; font-weight: 600; letter-spacing: 0; white-space: nowrap; padding: 2px 6px; border-radius: 6px;
+  background: #059669; color: #fff; text-decoration: none; }
+/* перемикач Львів | Київ */
+.rcp-city { padding: 3px; }
+.rcp-city .tab-btn { padding: 6px 14px; }
+/* плитки «Прийому»: іконка ліворуч, число і назва праворуч, уточнення окремим рядком */
+.rcp-tile { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; row-gap: 1px;
+            align-items: center; align-content: start; padding: 12px 14px; }
+.rcp-tile-icon { grid-row: span 3; align-self: start; width: 40px; height: 40px; border-radius: 12px;
+                 display: flex; align-items: center; justify-content: center; background: rgba(100, 116, 139, .1); color: #64748b; }
+.rcp-tile-icon svg { width: 22px; height: 22px; }
+.rcp-tile-icon img { width: 26px; height: 26px; }
+.rcp-tile b { grid-column: 2; }
+.rcp-tile-label { grid-column: 2; font-size: 13px; color: var(--ink-soft); line-height: 1.25; }
+.rcp-tile-sub { grid-column: 2; justify-self: start; margin-top: 4px; font-size: 11px; font-weight: 600; color: #475569;
+                padding: 1px 8px; border-radius: 999px; background: rgba(100, 116, 139, .1); }
+.rcp-tile-sub em { font-style: normal; color: #be123c; }
+.rcp-tile.is-npday .rcp-tile-icon { background: rgba(216, 31, 38, .08); }
+.rcp-tile.is-npday b { color: #d81f26; }
+.rcp-tile.is-npday:has(em) .rcp-tile-sub { background: rgba(244, 63, 94, .12); }
+.rcp-tile.is-accepted .rcp-tile-icon { background: rgba(16, 185, 129, .12); color: #059669; }
+.rcp-tile.is-accepted b { color: #059669; }
+.rcp-tile.is-onway .rcp-tile-icon { background: rgba(99, 102, 241, .1); color: #4f46e5; }
+.rcp-tile.is-issued.has-alert .rcp-tile-icon { background: rgba(244, 63, 94, .12); color: #e11d48; }
+.rcp-tile.is-issued.has-alert b { color: #e11d48; }
