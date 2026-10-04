@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const columns = [
     "Дата замов", "Номер замов", "Фото",
-    "Назва товару", "к-сть", "Артикул", "Статус"
+    "Назва товару", "к-сть", "Артикул"
   ];
   const pdfColumns = [
     "Назва товару", "Фото",
@@ -884,19 +884,6 @@ document.addEventListener("DOMContentLoaded", () => {
                               </svg>
                             </button>
                           </div>
-                        </td>
-                        <td class="font-semibold">
-                          ${currentView === "ordered"
-                            ? `<span class="badge badge-amber">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M3 13V6a1 1 0 0 1 1-1h9v8H3Z"></path>
-                                  <path d="M13 8h3l3 3v3h-6V8Z"></path>
-                                  <circle cx="7.5" cy="16.5" r="1.5"></circle>
-                                  <circle cx="17.5" cy="16.5" r="1.5"></circle>
-                                </svg>
-                                В дорозі
-                               </span>`
-                            : `<span class="badge badge-emerald">Новий</span>`}
                         </td>
                         <td class="text-center">
                           <button class="delete-item-btn icon-btn" data-row-id="${item.id ?? ''}" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
