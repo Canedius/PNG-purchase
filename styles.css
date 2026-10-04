@@ -637,6 +637,10 @@ body::after {
 }
 
 .glass-table thead th.text-center { text-align: center; }
+/* Коментар до товару з KeyCRM */
+.item-comment { margin-top: 3px; font-size: 12px; line-height: 1.35; color: #64748b; white-space: pre-line; }
+.item-comment::before { content: "💬 "; }
+
 /* Дата/номер/статус CRM — одна клітинка на все замовлення */
 .glass-table tbody td.order-cell { vertical-align: middle; }
 

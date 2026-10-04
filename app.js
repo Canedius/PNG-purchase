@@ -16,12 +16,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Групи статусів KeyCRM: 1 нові, 2 погодження, 3 виробництво, 4 доставка, 5 виконано, 6 скасовано
   const crmGroupClass = { 1: "badge-indigo", 2: "badge-amber", 3: "badge-sky", 4: "badge-emerald", 5: "badge-slate", 6: "badge-rose" };
+  const escapeHtml = (v) => String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
   // Замовлення виконане/скасоване в CRM — його товари вже не треба закуповувати (замовлене в дорозі лишаємо)
   const CLOSED_CRM_GROUPS = new Set([5, 6]);
   function crmStatusBadge(item) {
     if (!item.orderStatus) return "";
     const cls = crmGroupClass[item.orderStatusGroup] || "badge-slate";
-    return `<span class="badge ${cls} crm-status" title="Статус замовлення в KeyCRM">${String(item.orderStatus).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]))}</span>`;
+    return `<span class="badge ${cls} crm-status" title="Статус замовлення в KeyCRM">${escapeHtml(item.orderStatus)}</span>`;
   }
 
   const columns = [
@@ -874,6 +875,7 @@ document.addEventListener("DOMContentLoaded", () => {
                               </svg>
                             </button>
                           </div>
+                          ${item.comment ? `<div class="item-comment" title="Коментар до товару в KeyCRM">${escapeHtml(item.comment)}</div>` : ""}
                         </td>
                         <td>${item.quantity}</td>
                         <td>
@@ -1525,6 +1527,7 @@ document.addEventListener("DOMContentLoaded", () => {
           orderLink: row.OrderLink || "#",
           photo: row.photo || null,
           orderStatus: row.order_status || "",
+          comment: row.comment || "",
           orderStatusGroup: row.order_status_group ?? null,
           status,
           batchId,
