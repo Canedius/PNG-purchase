@@ -814,15 +814,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const rows = grouped[order];
                     return `
                     <tr class="group-sep ${groupIdx === 0 ? "is-first" : ""}"><td colspan="${2 + columns.length}"></td></tr>
-                    ${rows.map(item => {
-                      const itemIdx = supplier.items.indexOf(item);
-                      return `
-                      <tr>
-                        <td class="text-center row-lead">
-                          <input type="checkbox" class="row-check styled-check" data-supplier="${idx}" data-item="${itemIdx}" ${item._selected ? "checked" : ""}>
-                        </td>
-                        <td>${item.dateOrder}</td>
-                        <td>
+                    ${rows.map((item, rowIdx) => {
+                      // Дата, номер і статус CRM — одна клітинка на все замовлення (rowspan)
+                      const orderCells = rowIdx > 0 ? "" : `
+                        <td rowspan="${rows.length}" class="order-cell">${item.dateOrder}</td>
+                        <td rowspan="${rows.length}" class="order-cell">
                           <div class="flex items-center gap-2 group">
                             <a class="cell-link" href="${item.orderLink}" target="_blank" rel="noopener">${item.orderNumber}</a>
                             <button class="copy-btn" data-copy="${item.orderNumber}" title="Копіювати номер замовлення">
@@ -831,7 +827,15 @@ document.addEventListener("DOMContentLoaded", () => {
                               </svg>
                             </button>
                           </div>
+                          ${crmStatusBadge(item)}
+                        </td>`;
+                      const itemIdx = supplier.items.indexOf(item);
+                      return `
+                      <tr>
+                        <td class="text-center row-lead">
+                          <input type="checkbox" class="row-check styled-check" data-supplier="${idx}" data-item="${itemIdx}" ${item._selected ? "checked" : ""}>
                         </td>
+                        ${orderCells}
                         <td>
                           ${photoImgTag(item.photo, "thumb-img")}
                         </td>
@@ -893,7 +897,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                 В дорозі
                                </span>`
                             : `<span class="badge badge-emerald">Новий</span>`}
-                          ${crmStatusBadge(item)}
                         </td>
                         <td class="text-center">
                           <button class="delete-item-btn icon-btn" data-row-id="${item.id ?? ''}" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
@@ -944,13 +947,24 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!rowId) { alert("Немає id рядка — онови сторінку і спробуй ще раз."); return; }
         if (!confirm(`Видалити цей товар із замовлення ${orderId}?`)) return;
         const row = e.currentTarget.closest("tr");
+        // currentTarget після await вже null — беремо індекси одразу
+        const sup = suppliers[Number(e.currentTarget.dataset.supplier)];
+        const item = sup?.items[Number(e.currentTarget.dataset.item)];
         try {
           row.style.opacity = "0.4";
           const resp = await fetch(`${deleteUrl}?id=${encodeURIComponent(rowId)}`);
           if (resp.ok) {
             row.style.transition = "opacity 0.3s";
             row.style.opacity = "0";
-            setTimeout(() => row.remove(), 300);
+            // Перемальовуємо, а не row.remove(): у першому рядку замовлення сидять rowspan-клітинки номера/статусу
+            setTimeout(() => {
+              if (sup && item) {
+                sup.items.splice(sup.items.indexOf(item), 1);
+                renderSuppliers();
+              } else {
+                row.remove();
+              }
+            }, 300);
           } else {
             row.style.opacity = "1";
             alert("Помилка видалення: " + resp.status);
