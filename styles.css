@@ -638,7 +638,7 @@ body::after {
 
 .glass-table thead th.text-center { text-align: center; }
 /* Дата/номер/статус CRM — одна клітинка на все замовлення */
-.glass-table tbody td.order-cell { vertical-align: top; padding-top: 10px; }
+.glass-table tbody td.order-cell { vertical-align: middle; }
 
 .glass-table tbody tr { transition: background .2s var(--ease); }
 .glass-table tbody tr:hover td { background: rgba(99, 102, 241, .07); }
