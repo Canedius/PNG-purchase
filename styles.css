@@ -637,6 +637,10 @@ body::after {
 }
 
 .glass-table thead th.text-center { text-align: center; }
+/* Вузька колонка статусу: довгі назви статусів переносяться */
+.glass-table .status-col { width: 140px; max-width: 140px; }
+.glass-table .status-col .badge { white-space: normal; line-height: 1.3; }
+
 /* Коментар до товару з KeyCRM */
 .item-comment { margin-top: 3px; font-size: 12px; line-height: 1.35; color: #64748b; white-space: pre-line; }
 .item-comment::before { content: "💬 "; }

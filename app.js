@@ -806,7 +806,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <th class="w-9 text-center">
                       <input type="checkbox" class="toggle-all styled-check mx-auto" data-index="${idx}" data-batch="${batchId}" ${batchItems.length>0 && batchItems.every(i => i._selected) ? "checked" : ""}>
                     </th>
-                    ${columns.map(col => `<th>${col}</th>`).join("")}
+                    ${columns.map(col => col === "Статус" ? `<th class="status-col">${col}</th>` : `<th>${col}</th>`).join("")}
                     <th class="w-9"></th>
                   </tr>
                 </thead>
@@ -830,7 +830,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             </button>
                           </div>
                         </td>`;
-                      const statusCell = rowIdx > 0 ? "" : `<td rowspan="${rows.length}" class="order-cell">${crmStatusBadge(item)}</td>`;
+                      const statusCell = rowIdx > 0 ? "" : `<td rowspan="${rows.length}" class="order-cell status-col">${crmStatusBadge(item)}</td>`;
                       const itemIdx = supplier.items.indexOf(item);
                       return `
                       <tr>
