@@ -809,10 +809,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     <th class="w-9"></th>
                   </tr>
                 </thead>
-                <tbody>
                   ${Object.keys(grouped).map((order, groupIdx) => {
                     const rows = grouped[order];
+                    // Окремий tbody на замовлення — щоб ховер підсвічував замовлення цілком (є rowspan-клітинки)
                     return `
+                    <tbody class="order-group">
                     <tr class="group-sep ${groupIdx === 0 ? "is-first" : ""}"><td colspan="${2 + columns.length}"></td></tr>
                     ${rows.map((item, rowIdx) => {
                       // Дата, номер і статус CRM — одна клітинка на все замовлення (rowspan)
@@ -900,9 +901,9 @@ document.addEventListener("DOMContentLoaded", () => {
                       </tr>
                       `;
                     }).join("")}
+                    </tbody>
                     `;
                   }).join("")}
-                </tbody>
               </table>
             </div>
           </div>

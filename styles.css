@@ -642,6 +642,9 @@ body::after {
 
 .glass-table tbody tr { transition: background .2s var(--ease); }
 .glass-table tbody tr:hover td { background: rgba(99, 102, 241, .07); }
+/* Замовлення з rowspan-клітинками підсвічуємо цілком */
+.glass-table tbody.order-group tr:not(.group-sep):hover td { background: transparent; }
+.glass-table tbody.order-group:hover tr:not(.group-sep) td { background: rgba(99, 102, 241, .07); }
 
 /* Група одного замовлення — акцентна грань замість фарбованого фону */
 .glass-table tbody tr.group-sep td {
