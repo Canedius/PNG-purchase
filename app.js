@@ -16,6 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Групи статусів KeyCRM: 1 нові, 2 погодження, 3 виробництво, 4 доставка, 5 виконано, 6 скасовано
   const crmGroupClass = { 1: "badge-indigo", 2: "badge-amber", 3: "badge-sky", 4: "badge-emerald", 5: "badge-slate", 6: "badge-rose" };
+  // Замовлення виконане/скасоване в CRM — його товари вже не треба закуповувати (замовлене в дорозі лишаємо)
+  const CLOSED_CRM_GROUPS = new Set([5, 6]);
   function crmStatusBadge(item) {
     if (!item.orderStatus) return "";
     const cls = crmGroupClass[item.orderStatusGroup] || "badge-slate";
@@ -1471,7 +1473,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const keepRow = (r) => r &&
         (r.OrderID != null && r.OrderID !== "") &&
         (r.SKU || r.ProductName) &&
-        allowed.has(r.company_tag);
+        allowed.has(r.company_tag) &&
+        !(r.procurement_status === "to_buy" && CLOSED_CRM_GROUPS.has(Number(r.order_status_group)));
       if (Array.isArray(rows)) {
         rows = rows.filter(keepRow);
         rememberSkuPhotos(rows);
