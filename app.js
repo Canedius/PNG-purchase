@@ -14,6 +14,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const orderLinkBase = "https://pngstudio.keycrm.app/app/orders/view/";
   const imgbbKey = "94bdaee3905112e98422049edbc5347f"; // ключ imgbb для аплоуду фото
 
+  // Групи статусів KeyCRM: 1 нові, 2 погодження, 3 виробництво, 4 доставка, 5 виконано, 6 скасовано
+  const crmGroupClass = { 1: "badge-indigo", 2: "badge-amber", 3: "badge-sky", 4: "badge-emerald", 5: "badge-slate", 6: "badge-rose" };
+  function crmStatusBadge(item) {
+    if (!item.orderStatus) return "";
+    const cls = crmGroupClass[item.orderStatusGroup] || "badge-slate";
+    return `<span class="badge ${cls} crm-status" title="Статус замовлення в KeyCRM">${String(item.orderStatus).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]))}</span>`;
+  }
+
   const columns = [
     "Дата замов", "Номер замов", "Фото",
     "Назва товару", "к-сть", "Артикул", "Статус"
@@ -883,6 +891,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 В дорозі
                                </span>`
                             : `<span class="badge badge-emerald">Новий</span>`}
+                          ${crmStatusBadge(item)}
                         </td>
                         <td class="text-center">
                           <button class="delete-item-btn icon-btn" data-row-id="${item.id ?? ''}" data-order-id="${item.orderNumber}" data-supplier="${idx}" data-item="${itemIdx}" title="Видалити товар">
@@ -1509,6 +1518,8 @@ document.addEventListener("DOMContentLoaded", () => {
           barcode: row.OrderID ? String(row.OrderID) : "",
           orderLink: row.OrderLink || "#",
           photo: row.photo || null,
+          orderStatus: row.order_status || "",
+          orderStatusGroup: row.order_status_group ?? null,
           status,
           batchId,
           raw: row
