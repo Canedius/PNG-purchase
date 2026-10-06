@@ -39,6 +39,11 @@
   // Клік по лічильнику: npday | accepted | onway | issued; null — увесь реєстр.
   // При переході на вкладку одразу відкрито «Віддано Новою Поштою»
   const DEFAULT_FILTER = "npday";
+  // Пошук від 4 символів іде в базу за всі дні (ТТН чи її частина, № замовлення, відправник)
+  const SEARCH_MIN = 4;
+  let found = null;        // результат пошуку за всі дні; null — показуємо реєстр дня
+  let searchTimer = null;
+  let searchSeq = 0;
   let filter = DEFAULT_FILTER;
   // Місто отримувача за накладною; при відкритті завжди Львів. Невідоме місто — теж Львів, щоб нічого не загубилось
   let city = "Львів";
@@ -137,7 +142,10 @@
     const who = r.alias_name
       ? `<b>${esc(r.alias_name)}</b> <span class="rcp-mute">${esc(r.counterparty && r.counterparty !== "Приватна особа" ? r.counterparty : r.sender || "")}</span>`
       : `<b>${esc(r.counterparty && r.counterparty !== "Приватна особа" ? r.counterparty : r.sender || (r.known ? "відправник невідомий" : "немає в реєстрі НП"))}</b>`;
-    const meta = [r.cargo, r.weight ? `${r.weight} кг` : "", r.seats ? `${r.seats} місц.` : "", r.city]
+    const docDay = found && r.doc_date
+      ? new Date(r.doc_date).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Europe/Kyiv" })
+      : "";
+    const meta = [docDay, r.cargo, r.weight ? `${r.weight} кг` : "", r.seats ? `${r.seats} місц.` : "", r.city]
       .filter(Boolean).map(esc).join(" · ");
     const target = r.order_id
       ? `<a class="rcp-order" href="${orderLinkBase}${encodeURIComponent(r.order_id)}" target="_blank" rel="noopener">№ ${esc(r.order_id)}</a>`
@@ -171,6 +179,13 @@
 
   function renderList(all) {
     const el = $(".rcp-list");
+    if (found) {
+      const list = [...found].sort((a, b) => String(b.doc_date || "").localeCompare(String(a.doc_date || "")));
+      el.innerHTML = list.length
+        ? section("🔎 Пошук за всі дні", `${list.length}${list.length >= 100 ? "+ · показано 100 найсвіжіших" : ""} · обидва міста`, list)
+        : `<div class="glass-card is-static rcp-empty">Нічого не знайдено за всі дні</div>`;
+      return;
+    }
     const rows = all.filter(r => matches(r) && (filter ? FILTERS[filter](r) : inDay(r)));
     if (!rows.length) {
       el.innerHTML = `<div class="glass-card is-static rcp-empty">${query || filter ? "Нічого не знайдено" : "На цей день посилок немає"}</div>`;
@@ -261,13 +276,33 @@
         body: JSON.stringify({ ttn, by: operator() })
       });
       await resp.json().catch(() => ({}));
-      searchEl.value = "";
-      query = "";
+      clearSearch();
       if (day !== kyivDay()) day = kyivDay();
       await load();
     } catch (e) {
       alert(`Не вдалося прийняти ${ttn}: ${e.message}`);
     }
+  }
+
+  async function runSearch() {
+    const q = searchEl.value.trim();
+    const seq = ++searchSeq;
+    if (q.length < SEARCH_MIN) { found = null; render(); return; }
+    try {
+      const resp = await fetch(`${listUrl}?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (seq === searchSeq) { found = json.rows || []; render(); }
+    } catch (e) {
+      console.warn("Прийом: пошук не вдався", e);
+    }
+  }
+
+  function clearSearch() {
+    searchEl.value = "";
+    query = "";
+    found = null;
+    searchSeq++;
   }
 
   function setDay(d) {
@@ -309,17 +344,22 @@
   });
   searchEl.addEventListener("input", () => {
     query = searchEl.value.trim().toLowerCase();
+    clearTimeout(searchTimer);
+    if (query.length >= SEARCH_MIN) searchTimer = setTimeout(runSearch, 350);
+    else { found = null; searchSeq++; }
     if (data) renderList(cityRows());
   });
   searchEl.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { searchEl.value = ""; query = ""; render(); }
+    if (e.key === "Escape") { clearSearch(); render(); }
     if (e.key !== "Enter") return;
     const digits = searchEl.value.replace(/\D/g, "");
     if (/^\d{14}$/.test(digits)) acceptManual(digits);
   });
 
   function tick() {
-    if (visible && !document.hidden) load();
+    if (!visible || document.hidden) return;
+    load();
+    if (found) runSearch(); // щоб у результатах пошуку теж було видно свіжі скани
   }
 
   window.ReceiptTab = {
