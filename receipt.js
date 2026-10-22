@@ -64,7 +64,7 @@
           <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
         </svg>
         <input type="text" autocomplete="off" spellcheck="false"
-               placeholder="ТТН, замовлення, відправник… 14 цифр + Enter — прийняти" />
+               placeholder="ТТН, замовлення, відправник… ТТН або наклейка місця + Enter — прийняти" />
       </div>
     </div>
     <div class="rcp-counters"></div>
@@ -73,8 +73,21 @@
   const $ = (sel) => panel.querySelector(sel);
   const searchEl = $(".rcp-search input");
 
+  // Прийнята повністю: багатомісна — лише коли відскановано кожне місце (complete рахує сервер)
+  const done = (r) => !!r.accepted_at && r.complete !== false;
+
+  // Місця НП рахуються з нуля: місце 0 — наклейка з чистою ТТН, далі ТТН + 0001, 0002…
+  const seatLabel = (ttn, s) => s ? `…${String(ttn).slice(-4)}${String(s).padStart(4, "0")}` : "ТТН без номера місця";
+  const missingSeats = (r) => {
+    const got = new Set(r.seats_scanned || []);
+    const out = [];
+    for (let s = 0; s < (r.seats_total || 1); s++) if (!got.has(s)) out.push(s);
+    return out;
+  };
+
   // Стан посилки для лічильників і кольору рядка
   function kind(r) {
+    if (r.accepted_at && !done(r)) return "partial";   // відскановано не всі місця
     if (r.accepted_at) return "accepted";
     if (r.issued_at) return "issued";       // НП каже «видано», а скану немає
     if (r.arrived_at) return "waiting";     // лежить у відділенні
@@ -97,15 +110,15 @@
 
   // НП відмітила «видано» саме у вибраний день
   const npDay = (r) => r.issued_at && kyivDay(new Date(r.issued_at)) === day;
-  // Основний реєстр дня: те, що чекає, і прийняте саме цього дня
+  // Основний реєстр дня: те, що чекає (і недоскановане), і прийняте саме цього дня
   // (рядки, прийняті іншого дня, приходять лише для звірки з НП)
-  const inDay = (r) => !r.accepted_at || r.shift_date === day;
+  const inDay = (r) => !done(r) || r.shift_date === day;
 
   const FILTERS = {
     npday:    npDay,
     accepted: r => inDay(r) && kind(r) === "accepted",
     onway:    r => kind(r) === "transit" || kind(r) === "waiting",   // у дорозі + лежить у відділенні
-    issued:   r => kind(r) === "issued"
+    issued:   r => kind(r) === "issued" || kind(r) === "partial"     // скану немає або не всіх місць
   };
 
   // Іконки плиток (лінійні, як у решті інтерфейсу)
@@ -150,13 +163,21 @@
     const target = r.order_id
       ? `<a class="rcp-order" href="${orderLinkBase}${encodeURIComponent(r.order_id)}" target="_blank" rel="noopener">№ ${esc(r.order_id)}</a>`
       : (r.alias_kind === "category" ? `<span class="rcp-cat">${esc(r.alias_name)}</span>` : "");
+    const total = r.seats_total || 1;
     let state;
     if (k === "accepted") {
       // звірка з НП під нашою відміткою
       const np = r.issued_at
         ? `<span class="rcp-np is-ok">НП: видано ${esc(when(r.issued_at))}</span>`
         : `<span class="rcp-np">НП ще не відмітила</span>`;
-      state = `<span class="rcp-done">✓ ${esc(when(r.accepted_at))} ${esc(r.accepted_by || "")}</span>${np}`;
+      const seats = total > 1 ? ` · ${total}/${total} місць` : "";
+      state = `<span class="rcp-done">✓ ${esc(when(r.accepted_at))} ${esc(r.accepted_by || "")}${seats}</span>${np}`;
+    }
+    else if (k === "partial") {
+      const miss = missingSeats(r);
+      const list = miss.map(s => `місце ${s + 1} (${seatLabel(r.ttn, s)})`).join(", ");
+      state = `<span class="rcp-badge is-amber" title="Відскановано місць: ${total - miss.length} з ${total}">⚠ ${total - miss.length}/${total} місць · немає ${miss.length === 1 ? "скану" : "сканів"}: ${esc(list)}</span>
+        <span class="rcp-seats">перший скан ${esc(when(r.accepted_at))} ${esc(r.accepted_by || "")}</span>`;
     }
     else if (k === "issued") state = `<span class="rcp-badge is-red">НП: видано ${esc(when(r.issued_at))}</span>`;
     else if (k === "waiting") state = `<span class="rcp-badge ${ageClass(r.days_waiting)}">${r.days_waiting ? `у відділенні ${r.days_waiting} дн.` : "прибула сьогодні"}</span>`;
@@ -194,10 +215,10 @@
     // Звірка з НП за день: спершу те, що НП видала, а скану немає
     if (filter === "npday") {
       const byTime = (a, b) => String(a.issued_at).localeCompare(String(b.issued_at));
-      const noScan = rows.filter(r => !r.accepted_at).sort(byTime);
-      const ok = rows.filter(r => r.accepted_at).sort(byTime);
+      const noScan = rows.filter(r => !done(r)).sort(byTime);
+      const ok = rows.filter(done).sort(byTime);
       el.innerHTML =
-        (noScan.length ? section("⚠️ НП видала — скану немає", `${noScan.length} · шукати на складі або писати в НП`, noScan, "is-alert") : "") +
+        (noScan.length ? section("⚠️ НП видала — скану немає або не всіх місць", `${noScan.length} · шукати на складі або писати в НП`, noScan, "is-alert") : "") +
         (ok.length ? section("✓ НП видала — прийнято", `${ok.length} · збігається`, ok) : "");
       return;
     }
@@ -208,13 +229,13 @@
       groups.get(g).push(r);
     });
     // Спершу те, що чекає довше; прийняте — вниз
-    const order = { issued: 0, waiting: 1, transit: 2, accepted: 3 };
+    const order = { partial: 0, issued: 0, waiting: 1, transit: 2, accepted: 3 };
     el.innerHTML = [...groups.entries()]
-      .sort((a, b) => b[1].filter(r => !r.accepted_at).length - a[1].filter(r => !r.accepted_at).length)
+      .sort((a, b) => b[1].filter(r => !done(r)).length - a[1].filter(r => !done(r)).length)
       .map(([name, list]) => {
         list.sort((a, b) => order[kind(a)] - order[kind(b)] || (b.days_waiting || 0) - (a.days_waiting || 0)
           || String(b.accepted_at || "").localeCompare(String(a.accepted_at || "")));
-        const left = list.filter(r => !r.accepted_at).length;
+        const left = list.filter(r => !done(r)).length;
         return `<section class="glass-card is-static rcp-group">
             <h3>${esc(name)} <span class="rcp-mute">${left ? `чекає ${left}` : "усе прийнято"} · усього ${list.length}</span></h3>
             ${list.map(rowHtml).join("")}
@@ -225,7 +246,7 @@
   // Перемикач міста: у кнопці — скільки посилок ще чекає прийому
   function renderCity() {
     const all = (data && data.rows) || [];
-    const left = (c) => all.filter(r => cityOf(r) === c && !r.accepted_at).length;
+    const left = (c) => all.filter(r => cityOf(r) === c && !done(r)).length;
     $(".rcp-city").innerHTML = ["Львів", "Київ"].map(c =>
       `<button type="button" data-city="${c}" class="tab-btn ${city === c ? "is-active" : ""}">${c} <span class="rcp-mute">${left(c)}</span></button>`).join("");
   }
@@ -353,7 +374,7 @@
     if (e.key === "Escape") { clearSearch(); render(); }
     if (e.key !== "Enter") return;
     const digits = searchEl.value.replace(/\D/g, "");
-    if (/^\d{14}$/.test(digits)) acceptManual(digits);
+    if (/^\d{14}(\d{4})?$/.test(digits)) acceptManual(digits);   // ТТН або наклейка місця (ТТН + 0001…)
   });
 
   function tick() {

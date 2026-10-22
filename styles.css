@@ -1026,6 +1026,8 @@ body::after {
 .rcp-row.is-accepted .rcp-who { text-decoration: line-through; text-decoration-color: rgba(5, 150, 105, .6); color: var(--ink-mute); }
 .rcp-row.is-accepted .rcp-meta { color: var(--ink-mute); }
 .rcp-row.is-issued { background: rgba(244, 63, 94, .05); }
+.rcp-row.is-partial { background: rgba(245, 158, 11, .07); }
+.rcp-seats { display: block; margin-top: 3px; font-size: 12px; color: var(--ink-mute); }
 .rcp-empty { padding: 28px; text-align: center; color: var(--ink-mute); font-size: 14px; }
 .rcp-empty.is-error { color: #be123c; }
 
