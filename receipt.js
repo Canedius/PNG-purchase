@@ -101,9 +101,11 @@
     return "";
   }
 
+  const orderIds = (r) => r.order_ids && r.order_ids.length ? r.order_ids : [r.order_id];
+
   function matches(r) {
     if (!query) return true;
-    const hay = [r.ttn, r.order_id, r.alias_name, r.counterparty, r.sender, r.cargo, r.warehouse, r.accepted_by]
+    const hay = [r.ttn, ...orderIds(r), r.alias_name, r.counterparty, r.sender, r.cargo, r.warehouse, r.accepted_by]
       .join(" ").toLowerCase();
     return query.split(/\s+/).every(t => hay.includes(t));
   }
@@ -160,8 +162,9 @@
       : "";
     const meta = [docDay, r.cargo, r.weight ? `${r.weight} кг` : "", r.seats ? `${r.seats} місц.` : "", r.city]
       .filter(Boolean).map(esc).join(" · ");
+    // Одна ТТН може везти кілька замовлень (sborka.ua) — посилання на кожне
     const target = r.order_id
-      ? `<a class="rcp-order" href="${orderLinkBase}${encodeURIComponent(r.order_id)}" target="_blank" rel="noopener">№ ${esc(r.order_id)}</a>`
+      ? orderIds(r).map(id => `<a class="rcp-order" href="${orderLinkBase}${encodeURIComponent(id)}" target="_blank" rel="noopener">№ ${esc(id)}</a>`).join(" ")
       : (r.alias_kind === "category" ? `<span class="rcp-cat">${esc(r.alias_name)}</span>` : "");
     const total = r.seats_total || 1;
     let state;
