@@ -1098,3 +1098,7 @@ button.rcp-tile.is-active { border-color: var(--accent); box-shadow: 0 0 0 3px r
 .bc-form textarea:focus { outline: none; border-color: var(--accent); }
 .bc-form .gbtn:disabled { opacity: .6; cursor: default; }
 @media (max-width: 640px) { .bc { right: 12px; bottom: 12px; } .bc-fab span { display: none; } }
+/* «можливо № …» у «Прийомі» — збіг за сумою закупівлі, не підтверджено */
+.rcp-guess { display: inline-flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; font-size: 12px; padding: 2px 9px; border-radius: 999px;
+  color: #b45309; border: 1px dashed rgba(217, 119, 6, .55); background: rgba(245, 158, 11, .08); }
+.rcp-guess .rcp-order { color: #b45309; }

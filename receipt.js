@@ -165,7 +165,11 @@
     // Одна ТТН може везти кілька замовлень (sborka.ua) — посилання на кожне
     const target = r.order_id
       ? orderIds(r).map(id => `<a class="rcp-order" href="${orderLinkBase}${encodeURIComponent(id)}" target="_blank" rel="noopener">№ ${esc(id)}</a>`).join(" ")
-      : (r.alias_kind === "category" ? `<span class="rcp-cat">${esc(r.alias_name)}</span>` : "");
+      // «можливо» — збіг оголошеної вартості з сумою закупівлі (ttn_guess), не підтверджений зв'язок
+      : r.guess_ids && r.guess_ids.length
+        ? `<span class="rcp-guess" title="Можливо: оголошена вартість ${r.guess_method === "exact" ? "дорівнює" : "близька до"} суми закупівлі в ${esc(r.guess_supplier)}">можливо ${
+            r.guess_ids.map(id => `<a class="rcp-order" href="${orderLinkBase}${encodeURIComponent(id)}" target="_blank" rel="noopener">№ ${esc(id)}</a>`).join(" ")}</span>`
+        : (r.alias_kind === "category" ? `<span class="rcp-cat">${esc(r.alias_name)}</span>` : "");
     const total = r.seats_total || 1;
     let state;
     if (k === "accepted") {
